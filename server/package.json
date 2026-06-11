@@ -1,0 +1,43 @@
+{
+  "name": "supplier-portal-server",
+  "version": "1.0.0",
+  "description": "供应商可视化平台 - 后端服务",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "start:dev": "tsc -w & node --watch dist/main.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.0",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/core": "^10.4.0",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^10.4.0",
+    "@nestjs/serve-static": "^4.0.0",
+    "@nestjs/swagger": "^7.4.0",
+    "bcryptjs": "^3.0.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "drizzle-orm": "^0.33.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.11.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "drizzle-kit": "^0.24.0",
+    "typescript": "^5.5.0"
+  }
+}

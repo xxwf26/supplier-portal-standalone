@@ -1,0 +1,216 @@
+{
+  "suppliers": [
+    {
+      "id": "1",
+      "name": "星落画师-阿澄",
+      "type": "individual",
+      "styles": ["古风", "正比", "少女风"],
+      "cooperationTypes": ["角色原画", "场景原画"],
+      "priceRange": [1500, 4000],
+      "priceUnit": "元/张",
+      "status": "active",
+      "project": ["恋与制作人"],
+      "contacts": {
+        "wechat": "xingluo_acheng",
+        "email": "acheng@example.com"
+      },
+      "links": {
+        "weibo": "https://weibo.com/u/example1",
+        "pixiv": "https://www.pixiv.net/users/example1",
+        "xiaohongshu": "https://www.xiaohongshu.com/user/profile/example1"
+      },
+      "notes": "付款方式月结，擅长古风仙侠角色，沟通响应快，出图质量稳定。曾参与恋与周年庆系列插画绘制。",
+      "works": ["work1", "work2", "work3"],
+      "history": ["恋与制作人周年庆插画", "古风角色立绘系列"]
+    },
+    {
+      "id": "2",
+      "name": "晴天插画工作室",
+      "type": "studio",
+      "styles": ["Q版", "写实"],
+      "cooperationTypes": ["UI图标", "角色原画"],
+      "priceRange": [800, 2000],
+      "priceUnit": "元/张",
+      "status": "active",
+      "project": ["通用"],
+      "contacts": {
+        "wechat": "sunny_illustration",
+        "email": "studio@sunnyart.com"
+      },
+      "links": {
+        "weibo": "https://weibo.com/u/example2"
+      },
+      "notes": "2人小团队，响应速度快，擅长Q版萌系风格，适合表情包和活动物料设计。",
+      "works": ["work4", "work5"],
+      "history": ["活动Q版插画", "UI图标设计"]
+    },
+    {
+      "id": "3",
+      "name": "云鹿文化传媒",
+      "type": "company",
+      "styles": ["欧风", "写实"],
+      "cooperationTypes": ["角色原画", "场景原画", "视频动效"],
+      "priceRange": [3000, 8000],
+      "priceUnit": "元/张",
+      "status": "active",
+      "project": ["IP开发中心"],
+      "contacts": {
+        "wechat": "yunlu_media",
+        "email": "contact@yunlu.com"
+      },
+      "links": {
+        "website": "https://www.example3.com",
+        "weibo": "https://weibo.com/u/example3"
+      },
+      "notes": "可开增值税专用发票，有成熟动效团队，流程规范，适合大型项目合作。",
+      "works": ["work6", "work7", "work8", "work9"],
+      "history": ["IP开发中心概念设计", "视频动效制作"]
+    },
+    {
+      "id": "4",
+      "name": "画师-白鹿",
+      "type": "individual",
+      "styles": ["少女风", "Q版"],
+      "cooperationTypes": ["角色原画"],
+      "priceRange": [1000, 2500],
+      "priceUnit": "元/张",
+      "status": "active",
+      "project": ["恋与制作人"],
+      "contacts": {
+        "wechat": "bailu_artist",
+        "email": "bailu@example.com"
+      },
+      "links": {
+        "pixiv": "https://www.pixiv.net/users/example4",
+        "xiaohongshu": "https://www.xiaohongshu.com/user/profile/example4"
+      },
+      "notes": "专注乙女向角色，线条细腻，擅长描绘温柔甜美的女性角色形象。",
+      "works": ["work10", "work11"],
+      "history": ["恋与制作人角色立绘", "乙女向插画系列"]
+    },
+    {
+      "id": "5",
+      "name": "星河画室",
+      "type": "studio",
+      "styles": ["正比", "古风"],
+      "cooperationTypes": ["角色原画", "场景原画", "修图"],
+      "priceRange": [1200, 3500],
+      "priceUnit": "元/张",
+      "status": "dormant",
+      "project": ["恋与制作人"],
+      "contacts": {
+        "wechat": "xinghe_studio",
+        "email": "xinghe@example.com"
+      },
+      "links": {},
+      "notes": "曾合作恋与周年庆插画，目前暂停接单，预计3个月后恢复。",
+      "works": ["work12", "work13"],
+      "history": ["恋与周年庆插画", "古风场景绘制"]
+    },
+    {
+      "id": "6",
+      "name": "画师-拾光",
+      "type": "individual",
+      "styles": ["赛博朋克", "欧风"],
+      "cooperationTypes": ["视频动效", "角色原画"],
+      "priceRange": [2000, 5000],
+      "priceUnit": "元/张",
+      "status": "active",
+      "project": ["IP开发中心"],
+      "contacts": {
+        "wechat": "shiguang_art",
+        "email": "shiguang@example.com"
+      },
+      "links": {
+        "weibo": "https://weibo.com/u/example6"
+      },
+      "notes": "擅长科幻题材，有AE动画能力，适合未来科技风格项目。",
+      "works": ["work14", "work15"],
+      "history": ["科幻概念设计", "动效制作项目"]
+    },
+    {
+      "id": "7",
+      "name": "光影摄影工作室",
+      "type": "studio",
+      "styles": ["写实"],
+      "cooperationTypes": ["摄影", "修图"],
+      "priceRange": [500, 2000],
+      "priceUnit": "元/组",
+      "status": "active",
+      "project": ["通用"],
+      "contacts": {
+        "wechat": "light_shadow_photo",
+        "email": "photo@lightshadow.com"
+      },
+      "links": {
+        "website": "https://www.example7.com"
+      },
+      "notes": "专注产品拍摄和人像精修，设备专业，后期能力强。",
+      "works": ["work16", "work17"],
+      "history": ["产品拍摄", "人像精修"]
+    },
+    {
+      "id": "8",
+      "name": "墨染数字艺术",
+      "type": "company",
+      "styles": ["古风", "正比", "少女风"],
+      "cooperationTypes": ["角色原画", "场景原画", "视频动效", "UI图标"],
+      "priceRange": [2500, 7000],
+      "priceUnit": "元/张",
+      "status": "active",
+      "project": ["恋与制作人", "IP开发中心"],
+      "contacts": {
+        "wechat": "moran_digital",
+        "email": "contact@moran.art"
+      },
+      "links": {
+        "weibo": "https://weibo.com/u/example8",
+        "website": "https://www.example8.com"
+      },
+      "notes": "全品类供应商，可签年度框架协议，团队规模大，交付稳定。",
+      "works": ["work18", "work19", "work20"],
+      "history": ["恋与制作人系列项目", "IP开发中心合作"]
+    },
+    {
+      "id": "9",
+      "name": "画师-鹿鸣",
+      "type": "individual",
+      "styles": ["Q版"],
+      "cooperationTypes": ["角色原画", "UI图标"],
+      "priceRange": [600, 1500],
+      "priceUnit": "元/张",
+      "status": "stopped",
+      "project": ["恋与制作人"],
+      "contacts": {
+        "wechat": "luming_artist",
+        "email": "luming@example.com"
+      },
+      "links": {},
+      "notes": "因个人原因暂停接单一年，后续合作需重新评估。",
+      "works": ["work21"],
+      "history": ["Q版角色设计"]
+    },
+    {
+      "id": "10",
+      "name": "星辰特效工作室",
+      "type": "studio",
+      "styles": ["欧风", "赛博朋克"],
+      "cooperationTypes": ["视频动效"],
+      "priceRange": [3000, 10000],
+      "priceUnit": "元/条",
+      "status": "active",
+      "project": ["IP开发中心"],
+      "contacts": {
+        "wechat": "xingchen_vfx",
+        "email": "vfx@xingchen.com"
+      },
+      "links": {
+        "weibo": "https://weibo.com/u/example10",
+        "bilibili": "https://space.bilibili.com/example10"
+      },
+      "notes": "专注粒子特效和角色动效，技术实力强，适合高品质视频需求。",
+      "works": ["work22", "work23"],
+      "history": ["粒子特效制作", "角色动效设计"]
+    }
+  ]
+}
