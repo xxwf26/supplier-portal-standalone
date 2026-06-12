@@ -34,6 +34,17 @@ const typeConfig = {
   company: { label: '公司', color: 'bg-amber-100 text-amber-700 border-amber-200' },
 };
 
+const SUPPLIER_TYPE_OPTIONS = [
+  { value: '个人', label: '个人画师' },
+  { value: '艺术家', label: '艺术家' },
+  { value: '工作室', label: '工作室' },
+  { value: '公司', label: '公司' },
+];
+
+const supplierTypeLabel: Record<string, string> = {
+  '个人': '个人画师', '艺术家': '艺术家', '工作室': '工作室', '公司': '公司',
+};
+
 const statusConfig = {
   in_stock: { label: '库内合作', color: 'bg-green-100 text-green-700 border-green-200', dotColor: 'bg-green-500' },
   outreach: { label: '库外建联', color: 'bg-blue-100 text-blue-700 border-blue-200', dotColor: 'bg-blue-500' },
@@ -154,6 +165,7 @@ export default function SupplierDetailModal({
   const [statusVal, setStatusVal] = useState('');
   const [styleTags, setStyleTags] = useState<string[]>([]);
   const [contactInfoText, setContactInfoText] = useState('');
+  const [supplierTypeVal, setSupplierTypeVal] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -184,6 +196,7 @@ export default function SupplierDetailModal({
     setCooperationCountVal(String(supplier.cooperationCount || 0));
     setRatingVal(supplier.rating != null ? String(supplier.rating) : '');
     setStatusVal(getStatusFromData(supplier));
+    setSupplierTypeVal(supplier.supplierType || '');
     setStyleTags(
       supplier.subCategory
         ? supplier.subCategory.split(/[\/、，]/).map((s) => s.trim()).filter(Boolean)
@@ -342,6 +355,7 @@ export default function SupplierDetailModal({
         rating: ratingVal ? Number(ratingVal) : undefined,
         subCategory: styleTags.join('、') || undefined,
         contactInfo: contactInfoText,
+        supplierType: supplierTypeVal || undefined,
         isInStock: statusVal === 'in_stock',
         riskStatus: statusVal === 'blacklisted' ? '拉黑' : '暂无',
       });
@@ -405,7 +419,7 @@ export default function SupplierDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-full max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden" showCloseButton={false}>
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
           <div className="flex items-start justify-between gap-4">
@@ -421,9 +435,22 @@ export default function SupplierDetailModal({
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className={cn(typeInfo.color, 'text-xs')}>
-                  {typeInfo.label}
-                </Badge>
+                {isEditing ? (
+                  <Select value={supplierTypeVal} onValueChange={setSupplierTypeVal}>
+                    <SelectTrigger className="h-7 text-xs w-[110px]">
+                      <SelectValue placeholder="选择类型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPLIER_TYPE_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge variant="outline" className={cn(typeInfo.color, 'text-xs')}>
+                    {typeInfo.label}
+                  </Badge>
+                )}
                 <Badge variant="outline" className={cn(statusInfo.color, 'text-xs')}>
                   <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', statusInfo.dotColor)} />
                   {statusInfo.label}
@@ -539,22 +566,22 @@ export default function SupplierDetailModal({
                 {isEditing ? (
                   <div className="space-y-2">
                     {artworkUrls.length > 0 && (
-                      <div className="grid grid-cols-4 gap-1.5">
+                      <div className="grid grid-cols-3 gap-2">
                         {artworkUrls.map((url, index) => (
-                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden group">
+                          <div key={index} className="relative aspect-[4/3] rounded-lg overflow-hidden group border border-border">
                             <img src={url} alt={`作品 ${index + 1}`} className="w-full h-full object-cover" />
                             <button
                               onClick={() => removeArtwork(index)}
-                              className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
                             >
-                              <Trash2Icon className="w-2.5 h-2.5" />
+                              <Trash2Icon className="w-3 h-3" />
                             </button>
                           </div>
                         ))}
                       </div>
                     )}
                     <div
-                      className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                      className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer min-h-[120px] flex flex-col items-center justify-center"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <input
@@ -572,15 +599,15 @@ export default function SupplierDetailModal({
                   </div>
                 ) : (
                   artworkUrls.length > 0 ? (
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <div className="grid grid-cols-3 gap-2">
                       {artworkUrls.map((url, index) => (
-                        <div key={index} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                        <div key={index} className="aspect-[4/3] rounded-lg overflow-hidden bg-muted border border-border">
                           <img src={url} alt={`作品 ${index + 1}`} className="w-full h-full object-cover" />
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground text-center py-2">暂无作品图片</p>
+                    <p className="text-xs text-muted-foreground text-center py-4">暂无作品图片</p>
                   )
                 )}
               </div>
