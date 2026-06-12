@@ -16,6 +16,7 @@ const supplier_module_1 = require("./modules/supplier/supplier.module");
 const upload_module_1 = require("./modules/upload/upload.module");
 const view_module_1 = require("./modules/view/view.module");
 const auth_module_1 = require("./modules/auth/auth.module");
+const audit_module_1 = require("./modules/audit/audit.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -25,6 +26,7 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             database_module_1.DatabaseModule,
             auth_module_1.AuthModule,
+            audit_module_1.AuditModule,
             supplier_module_1.SupplierModule,
             upload_module_1.UploadModule,
             // ViewModule must be registered last as catch-all route

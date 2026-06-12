@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
 import FilterPanelSection, { IFilterState } from './FilterPanelSection';
@@ -12,6 +12,7 @@ import { logger } from '@/lib/polyfills/logger';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import HistoryPanel from './HistoryPanel';
 
 // Lazy-load heavy components
 const ExcelImportModal = lazy(() => import('./ExcelImportModal'));
@@ -143,6 +144,7 @@ export default function SupplierDashboardPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'pc' | 'mobile'>(getInitialViewMode);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const { isAdmin, user, logout } = useAuth();
 
@@ -376,6 +378,10 @@ export default function SupplierDashboardPage() {
                 <Button variant="ghost" size="sm" onClick={logout} className="text-xs">退出</Button>
                 {isAdmin && (
                   <>
+                    <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setIsHistoryOpen(true)}>
+                      <HistoryIcon className="w-3.5 h-3.5" />
+                      历史
+                    </Button>
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsImportOpen(true)}>
                       <UploadIcon className="w-3.5 h-3.5" />
                       导入 Excel
@@ -418,6 +424,10 @@ export default function SupplierDashboardPage() {
                 <Button variant="ghost" size="sm" onClick={logout} className="text-xs h-7 px-2">退出</Button>
                 {isAdmin && (
                   <>
+                    <Button variant="ghost" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsHistoryOpen(true)}>
+                      <HistoryIcon className="w-3 h-3" />
+                      历史
+                    </Button>
                     <Button variant="outline" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsImportOpen(true)}>
                       <UploadIcon className="w-3 h-3" />
                       导入
@@ -572,6 +582,7 @@ export default function SupplierDashboardPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <HistoryPanel open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
     </div>
   );
 }

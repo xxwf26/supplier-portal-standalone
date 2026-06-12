@@ -31,11 +31,14 @@ function parseJson(value, fallback) {
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../database/database.module");
 const schema_1 = require("../../database/schema");
+const audit_service_1 = require("../audit/audit.service");
 let SupplierService = SupplierService_1 = class SupplierService {
     db;
+    auditService;
     logger = new common_1.Logger(SupplierService_1.name);
-    constructor(db) {
+    constructor(db, auditService) {
         this.db = db;
+        this.auditService = auditService;
     }
     async findAll(filter) {
         const conditions = [];
@@ -77,7 +80,7 @@ let SupplierService = SupplierService_1 = class SupplierService {
             .limit(1);
         return result.length > 0 ? this.mapToISupplier(result[0]) : null;
     }
-    async create(data) {
+    async create(data, operatedBy = 'admin') {
         await this.db.insert(schema_1.suppliers).values({
             accountName: data.accountName,
             socialLinks: data.socialLinks || {},
@@ -101,11 +104,17 @@ let SupplierService = SupplierService_1 = class SupplierService {
             supplierType: data.supplierType || null,
             importSource: 'manual',
         });
-        // Get the inserted record (last insert)
         const all = await this.db.select().from(schema_1.suppliers).orderBy((0, drizzle_orm_1.sql) `${schema_1.suppliers.createdAt} DESC`).limit(1);
-        return this.mapToISupplier(all[0]);
+        const created = this.mapToISupplier(all[0]);
+        await this.auditService.log({
+            operation: 'INSERT',
+            recordId: created.id,
+            newData: created,
+            operatedBy,
+        });
+        return created;
     }
-    async update(id, data) {
+    async update(id, data, operatedBy = 'admin') {
         const existing = await this.findById(id);
         if (!existing)
             return null;
@@ -157,20 +166,42 @@ let SupplierService = SupplierService_1 = class SupplierService {
         if (data.artworkUrls !== undefined)
             updateData.artworkUrls = data.artworkUrls;
         await this.db.update(schema_1.suppliers).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.suppliers.id, id));
-        return this.findById(id);
+        const updated = await this.findById(id);
+        await this.auditService.log({
+            operation: 'UPDATE',
+            recordId: id,
+            oldData: existing,
+            newData: updated,
+            operatedBy,
+        });
+        return updated;
     }
-    async delete(id) {
+    async delete(id, operatedBy = 'admin') {
+        const existing = await this.findById(id);
         await this.db.delete(schema_1.suppliers).where((0, drizzle_orm_1.eq)(schema_1.suppliers.id, id));
+        await this.auditService.log({
+            operation: 'DELETE',
+            recordId: id,
+            oldData: existing,
+            operatedBy,
+        });
         return true;
     }
-    async batchCreate(items) {
+    async batchCreate(items, operatedBy = 'admin') {
+        // 批量导入前先创建快照
+        try {
+            await this.auditService.createSnapshot('pre_import');
+        }
+        catch (err) {
+            this.logger.warn('Pre-import snapshot failed (non-blocking):', err);
+        }
         let successCount = 0;
         let failCount = 0;
         const errors = [];
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
             try {
-                await this.create(item);
+                await this.create(item, operatedBy);
                 successCount++;
             }
             catch (err) {
@@ -246,6 +277,6 @@ exports.SupplierService = SupplierService;
 exports.SupplierService = SupplierService = SupplierService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_module_1.DRIZZLE_DATABASE)),
-    __metadata("design:paramtypes", [Object])
+    __metadata("design:paramtypes", [Object, audit_service_1.AuditService])
 ], SupplierService);
 //# sourceMappingURL=supplier.service.js.map
