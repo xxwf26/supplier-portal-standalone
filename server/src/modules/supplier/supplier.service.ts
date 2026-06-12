@@ -1,4 +1,12 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
+
+function parseJson<T>(value: unknown, fallback: T): T {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') {
+    try { return JSON.parse(value); } catch { return fallback; }
+  }
+  return value as T;
+}
 import { eq, and, or, like, inArray, SQL, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
 import { suppliers } from '../../database/schema';
@@ -195,11 +203,11 @@ export class SupplierService {
     return {
       id: dbRecord.id,
       accountName: dbRecord.accountName,
-      socialLinks: (dbRecord.socialLinks || {}) as Record<string, string>,
+      socialLinks: parseJson(dbRecord.socialLinks, {}),
       subCategory: dbRecord.subCategory,
       cooperationType: dbRecord.cooperationType,
       priceRange: dbRecord.priceRange,
-      priceItems: (dbRecord.priceItems || []) as { cooperationType: string; unitPrice: number; priceUnit: string }[],
+      priceItems: parseJson(dbRecord.priceItems, []),
       cooperationCount: dbRecord.cooperationCount || 0,
       rating: dbRecord.rating,
       riskStatus: dbRecord.riskStatus || '暂无',
@@ -211,11 +219,11 @@ export class SupplierService {
       contractDeadline: dbRecord.contractDeadline,
       taxStatus: dbRecord.taxStatus,
       contactInfo: dbRecord.contactInfo,
-      contactItems: (dbRecord.contactItems || []) as { type: string; value: string }[],
+      contactItems: parseJson(dbRecord.contactItems, []),
       cooperationCategory: dbRecord.cooperationCategory,
       supplierType: dbRecord.supplierType,
-      artworkUrls: (dbRecord.artworkUrls || []) as string[],
-      manualLinks: (dbRecord.manualLinks || {}) as Record<string, string>,
+      artworkUrls: parseJson(dbRecord.artworkUrls, []),
+      manualLinks: parseJson(dbRecord.manualLinks, {}),
       importSource: dbRecord.importSource || 'manual',
       importBatchId: dbRecord.importBatchId,
       createdAt: dbRecord.createdAt instanceof Date ? dbRecord.createdAt.toISOString() : String(dbRecord.createdAt),

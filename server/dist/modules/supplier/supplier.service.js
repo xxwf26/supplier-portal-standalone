@@ -15,6 +15,19 @@ var SupplierService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SupplierService = void 0;
 const common_1 = require("@nestjs/common");
+function parseJson(value, fallback) {
+    if (value === null || value === undefined)
+        return fallback;
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value);
+        }
+        catch {
+            return fallback;
+        }
+    }
+    return value;
+}
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../database/database.module");
 const schema_1 = require("../../database/schema");
@@ -201,11 +214,11 @@ let SupplierService = SupplierService_1 = class SupplierService {
         return {
             id: dbRecord.id,
             accountName: dbRecord.accountName,
-            socialLinks: (dbRecord.socialLinks || {}),
+            socialLinks: parseJson(dbRecord.socialLinks, {}),
             subCategory: dbRecord.subCategory,
             cooperationType: dbRecord.cooperationType,
             priceRange: dbRecord.priceRange,
-            priceItems: (dbRecord.priceItems || []),
+            priceItems: parseJson(dbRecord.priceItems, []),
             cooperationCount: dbRecord.cooperationCount || 0,
             rating: dbRecord.rating,
             riskStatus: dbRecord.riskStatus || '暂无',
@@ -217,11 +230,11 @@ let SupplierService = SupplierService_1 = class SupplierService {
             contractDeadline: dbRecord.contractDeadline,
             taxStatus: dbRecord.taxStatus,
             contactInfo: dbRecord.contactInfo,
-            contactItems: (dbRecord.contactItems || []),
+            contactItems: parseJson(dbRecord.contactItems, []),
             cooperationCategory: dbRecord.cooperationCategory,
             supplierType: dbRecord.supplierType,
-            artworkUrls: (dbRecord.artworkUrls || []),
-            manualLinks: (dbRecord.manualLinks || {}),
+            artworkUrls: parseJson(dbRecord.artworkUrls, []),
+            manualLinks: parseJson(dbRecord.manualLinks, {}),
             importSource: dbRecord.importSource || 'manual',
             importBatchId: dbRecord.importBatchId,
             createdAt: dbRecord.createdAt instanceof Date ? dbRecord.createdAt.toISOString() : String(dbRecord.createdAt),

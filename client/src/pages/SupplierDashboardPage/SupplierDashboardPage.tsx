@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
 import FilterPanelSection, { IFilterState } from './FilterPanelSection';
@@ -11,10 +11,17 @@ import { ISupplier } from '@/api/types';
 import { logger } from '@/lib/polyfills/logger';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 // Lazy-load heavy components
 const ExcelImportModal = lazy(() => import('./ExcelImportModal'));
 const NewSupplierModal = lazy(() => import('./NewSupplierModal'));
+
+function getInitialViewMode(): 'pc' | 'mobile' {
+  const saved = localStorage.getItem('__view_mode');
+  if (saved === 'pc' || saved === 'mobile') return saved;
+  return window.innerWidth < 768 ? 'mobile' : 'pc';
+}
 
 // 转换API数据到前端格式
 function processSupplier(raw: ISupplier): IProcessedSupplier {
@@ -134,8 +141,31 @@ export default function SupplierDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [currentFilters, setCurrentFilters] = useState<IFilterState | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'pc' | 'mobile'>(getInitialViewMode);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const { isAdmin, user, logout } = useAuth();
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode(prev => {
+      const next = prev === 'pc' ? 'mobile' : 'pc';
+      localStorage.setItem('__view_mode', next);
+      return next;
+    });
+  }, []);
+
+  const activeFilterCount = useMemo(() => {
+    if (!currentFilters) return 0;
+    return (
+      currentFilters.types.length +
+      currentFilters.cooperationTypes.length +
+      currentFilters.styles.length +
+      currentFilters.status.length +
+      currentFilters.projects.length +
+      (currentFilters.keyword !== '' ? 1 : 0) +
+      (currentFilters.priceRange[0] !== 500 || currentFilters.priceRange[1] !== 10000 ? 1 : 0)
+    );
+  }, [currentFilters]);
 
   const processedSuppliers = useMemo(() => {
     if (!Array.isArray(rawSuppliers)) return [];
@@ -328,50 +358,123 @@ export default function SupplierDashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <HeaderSection />
+      <HeaderSection viewMode={viewMode} onToggleViewMode={toggleViewMode} />
 
-      <div className="flex">
-        <FilterPanelSection onFilterChange={handleFilterChange} />
+      {/* PC 模式：侧边栏 + 主内容 */}
+      {viewMode === 'pc' ? (
+        <div className="flex">
+          <FilterPanelSection onFilterChange={handleFilterChange} />
+          <main className="flex-1 p-4 md:p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                共 <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> 个供应商
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground mr-1">
+                  {user?.username} ({isAdmin ? '管理员' : '仅查看'})
+                </span>
+                <Button variant="ghost" size="sm" onClick={logout} className="text-xs">退出</Button>
+                {isAdmin && (
+                  <>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsImportOpen(true)}>
+                      <UploadIcon className="w-3.5 h-3.5" />
+                      导入 Excel
+                    </Button>
+                    <Button size="sm" className="gap-1.5" onClick={() => setIsNewOpen(true)}>
+                      <PlusIcon className="w-3.5 h-3.5" />
+                      新建供应商
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : (
+              <SupplierGridSection
+                suppliers={filteredSuppliers}
+                onSelect={handleSupplierSelect}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                viewMode="pc"
+              />
+            )}
+          </main>
+        </div>
+      ) : (
+        /* 手机模式：全宽竖向滚动 */
+        <>
+          <main className="w-full p-3 pb-24">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                共 <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> 个供应商
+              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">
+                  {user?.username}
+                </span>
+                <Button variant="ghost" size="sm" onClick={logout} className="text-xs h-7 px-2">退出</Button>
+                {isAdmin && (
+                  <>
+                    <Button variant="outline" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsImportOpen(true)}>
+                      <UploadIcon className="w-3 h-3" />
+                      导入
+                    </Button>
+                    <Button size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsNewOpen(true)}>
+                      <PlusIcon className="w-3 h-3" />
+                      新建
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : (
+              <SupplierGridSection
+                suppliers={filteredSuppliers}
+                onSelect={handleSupplierSelect}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                viewMode="mobile"
+              />
+            )}
+          </main>
 
-        <main className="flex-1 p-4 md:p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              共 <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> 个供应商
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground mr-1">
-                {user?.username} ({isAdmin ? '管理员' : '仅查看'})
+          {/* 浮动筛选按钮 */}
+          <button
+            onClick={() => setIsMobileFilterOpen(true)}
+            className="fixed bottom-6 left-4 z-40 flex items-center gap-2 bg-primary text-white rounded-full px-4 py-2.5 shadow-lg active:scale-95 transition-transform"
+          >
+            <FilterIcon className="w-4 h-4" />
+            <span className="text-sm font-medium">筛选</span>
+            {activeFilterCount > 0 && (
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white text-primary text-[11px] font-bold leading-none">
+                {activeFilterCount}
               </span>
-              <Button variant="ghost" size="sm" onClick={logout} className="text-xs">退出</Button>
-              {isAdmin && (
-                <>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsImportOpen(true)}>
-                    <UploadIcon className="w-3.5 h-3.5" />
-                    导入 Excel
-                  </Button>
-                  <Button size="sm" className="gap-1.5" onClick={() => setIsNewOpen(true)}>
-                    <PlusIcon className="w-3.5 h-3.5" />
-                    新建供应商
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+            )}
+          </button>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-            </div>
-          ) : (
-            <SupplierGridSection
-              suppliers={filteredSuppliers}
-              onSelect={handleSupplierSelect}
-              selectedIds={selectedIds}
-              onToggleSelect={handleToggleSelect}
-            />
-          )}
-        </main>
-      </div>
+          {/* 筛选 Sheet（从底部弹出） */}
+          <Sheet open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
+            <SheetContent side="bottom" className="h-[82vh] flex flex-col p-0 rounded-t-2xl">
+              <SheetHeader className="px-4 pt-4 pb-2 border-b border-border flex-shrink-0">
+                <SheetTitle className="text-base">筛选条件</SheetTitle>
+              </SheetHeader>
+              <div className="flex-1 overflow-y-auto px-4 py-2">
+                <FilterPanelSection
+                  onFilterChange={handleFilterChange}
+                  mode="sheet"
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
 
       <AnimatePresence>
         {isModalOpen && (

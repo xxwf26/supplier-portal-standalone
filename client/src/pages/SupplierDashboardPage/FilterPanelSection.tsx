@@ -63,8 +63,10 @@ const projectOptions = [
 
 export default function FilterPanelSection({
   onFilterChange,
+  mode = 'sidebar',
 }: {
   onFilterChange: (filters: IFilterState) => void;
+  mode?: 'sidebar' | 'sheet';
 }) {
   const [filters, setFilters] = useState<IFilterState>({
     types: [],
@@ -137,14 +139,23 @@ export default function FilterPanelSection({
     filters.priceRange[0] !== 500 ||
     filters.priceRange[1] !== 10000;
 
-  return (
-    <aside className="w-[280px] flex-shrink-0 bg-card border-r border-border p-4 overflow-y-auto sticky top-0 h-[calc(100vh-64px)]">
+  const activeFilterCount =
+    filters.types.length +
+    filters.cooperationTypes.length +
+    filters.styles.length +
+    filters.status.length +
+    filters.projects.length +
+    (filters.keyword !== '' ? 1 : 0) +
+    (filters.priceRange[0] !== 500 || filters.priceRange[1] !== 10000 ? 1 : 0);
+
+  const content = (
+    <>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-foreground">筛选条件</h2>
+        {mode === 'sidebar' && <h2 className="text-sm font-semibold text-foreground">筛选条件</h2>}
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="text-xs text-primary hover:text-primary/80 transition-colors"
+            className="text-xs text-primary hover:text-primary/80 transition-colors ml-auto"
           >
             清空筛选
           </button>
@@ -292,6 +303,16 @@ export default function FilterPanelSection({
           ))}
         </div>
       </div>
+    </>
+  );
+
+  if (mode === 'sheet') {
+    return <div className="px-1 py-2">{content}</div>;
+  }
+
+  return (
+    <aside className="w-[280px] flex-shrink-0 bg-card border-r border-border p-4 overflow-y-auto sticky top-0 h-[calc(100vh-64px)]">
+      {content}
     </aside>
   );
 }

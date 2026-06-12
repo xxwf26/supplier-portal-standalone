@@ -286,11 +286,13 @@ export default React.memo(function SupplierGridSection({
   onSelect,
   selectedIds = new Set<string>(),
   onToggleSelect,
+  viewMode = 'pc',
 }: {
   suppliers: IProcessedSupplier[];
   onSelect: (supplier: IProcessedSupplier) => void;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  viewMode?: 'pc' | 'mobile';
 }) {
   return (
     <section className="w-full">
@@ -298,7 +300,11 @@ export default React.memo(function SupplierGridSection({
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+        className={
+          viewMode === 'mobile'
+            ? 'grid grid-cols-2 gap-3'
+            : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+        }
       >
         {suppliers.map((supplier) => (
           <SupplierCard
