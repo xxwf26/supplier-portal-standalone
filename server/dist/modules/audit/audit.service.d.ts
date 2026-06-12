@@ -40,6 +40,9 @@ export declare class AuditService {
         deleted: number;
         message: string;
     }>;
+    rollbackLog(logId: number, operatedBy: string): Promise<{
+        message: string;
+    }>;
     createSnapshot(reason?: string): Promise<{
         filename: string;
         size: number;

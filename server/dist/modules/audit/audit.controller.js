@@ -31,6 +31,10 @@ let AuditController = class AuditController {
     getBatches() {
         return this.auditService.getBatches();
     }
+    /** 回滚单条日志（管理员） */
+    rollbackLog(id, req) {
+        return this.auditService.rollbackLog(Number(id), req.user?.username ?? 'admin');
+    }
     /** 回滚指定批次（管理员） */
     rollbackBatch(batchId, req) {
         return this.auditService.rollbackBatch(batchId, req.user?.username ?? 'admin');
@@ -60,6 +64,16 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AuditController.prototype, "getBatches", null);
+__decorate([
+    (0, common_1.Post)('rollback-log/:id'),
+    (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AuditController.prototype, "rollbackLog", null);
 __decorate([
     (0, common_1.Post)('rollback-batch/:batchId'),
     (0, common_1.UseGuards)(roles_guard_1.RolesGuard),

@@ -115,7 +115,72 @@ export class AuditService {
     return { deleted: toDelete.length, message: `已撤销 ${toDelete.length} 条导入数据` };
   }
 
-  // ── 快照：创建 ───────────────────────────────────────────
+  // ── 单条日志撤回 ─────────────────────────────────────────
+
+  async rollbackLog(logId: number, operatedBy: string): Promise<{ message: string }> {
+    const entries = await this.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.id, logId))
+      .limit(1);
+
+    if (!entries.length) throw new Error('日志记录不存在');
+    const entry = entries[0];
+
+    if (!['INSERT', 'UPDATE', 'DELETE'].includes(entry.operation)) {
+      throw new Error(`此操作类型不支持撤回: ${entry.operation}`);
+    }
+
+    const recordId = entry.recordId;
+
+    switch (entry.operation) {
+      case 'INSERT': {
+        if (recordId) {
+          await this.db.delete(suppliers).where(eq(suppliers.id, recordId));
+        }
+        break;
+      }
+      case 'UPDATE': {
+        if (recordId && entry.oldData) {
+          const old = entry.oldData as Record<string, unknown>;
+          const skipFields = new Set(['id', 'createdAt', 'updatedAt', 'importBatchId', 'importSource']);
+          const restoreData: Record<string, unknown> = { updatedAt: new Date() };
+          for (const [k, v] of Object.entries(old)) {
+            if (!skipFields.has(k)) {
+              restoreData[k] = v;
+            }
+          }
+          await this.db.update(suppliers).set(restoreData).where(eq(suppliers.id, recordId));
+        }
+        break;
+      }
+      case 'DELETE': {
+        if (entry.oldData) {
+          const old = entry.oldData as Record<string, unknown>;
+          const insertData: any = { ...old };
+          if (insertData.contractDeadline && typeof insertData.contractDeadline === 'string') {
+            insertData.contractDeadline = new Date(insertData.contractDeadline);
+          }
+          insertData.createdAt = insertData.createdAt ? new Date(insertData.createdAt) : new Date();
+          insertData.updatedAt = new Date();
+          await this.db.insert(suppliers).values(insertData).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
+        }
+        break;
+      }
+    }
+
+    await this.log({
+      operation: 'LOG_ROLLBACK',
+      recordId: recordId ?? undefined,
+      batchId: String(logId),
+      oldData: entry.newData,
+      newData: entry.oldData,
+      operatedBy,
+    });
+
+    this.logger.log(`Log ${logId} rolled back by ${operatedBy}`);
+    return { message: '撤回成功' };
+  }
 
   async createSnapshot(reason = 'manual'): Promise<{ filename: string; size: number }> {
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

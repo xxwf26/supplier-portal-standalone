@@ -582,7 +582,7 @@ export default function SupplierDashboardPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      <HistoryPanel open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+      <HistoryPanel open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onDataChange={fetchSuppliers} />
     </div>
   );
 }

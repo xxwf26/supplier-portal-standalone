@@ -25,6 +25,14 @@ export class AuditController {
     return this.auditService.getBatches();
   }
 
+  /** 回滚单条日志（管理员） */
+  @Post('rollback-log/:id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  rollbackLog(@Param('id') id: string, @Request() req: any) {
+    return this.auditService.rollbackLog(Number(id), req.user?.username ?? 'admin');
+  }
+
   /** 回滚指定批次（管理员） */
   @Post('rollback-batch/:batchId')
   @UseGuards(RolesGuard)

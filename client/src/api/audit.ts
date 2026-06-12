@@ -39,6 +39,11 @@ export const auditApi = {
     return res.data as IBatch[];
   },
 
+  rollbackLog: async (id: number) => {
+    const res = await axiosForBackend.post(`${BASE}/rollback-log/${id}`);
+    return res.data as { message: string };
+  },
+
   rollbackBatch: async (batchId: string) => {
     const res = await axiosForBackend.post(`${BASE}/rollback-batch/${encodeURIComponent(batchId)}`);
     return res.data as { deleted: number; message: string };

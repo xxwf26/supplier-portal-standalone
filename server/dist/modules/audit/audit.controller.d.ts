@@ -25,6 +25,10 @@ export declare class AuditController {
         count: number;
         imported_at: string;
     }[]>;
+    /** 回滚单条日志（管理员） */
+    rollbackLog(id: string, req: any): Promise<{
+        message: string;
+    }>;
     /** 回滚指定批次（管理员） */
     rollbackBatch(batchId: string, req: any): Promise<{
         deleted: number;
