@@ -365,7 +365,20 @@ export default function SupplierDashboardPage() {
 
     const text = lines.join('\n');
     try {
-      await navigator.clipboard.writeText(text);
+      // 优先用现代 API（需要 HTTPS），降级用 execCommand（兼容 HTTP 局域网访问）
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (!ok) throw new Error('execCommand failed');
+      }
       toast.success(`已复制 ${selectedSuppliers.length} 位画师信息`);
     } catch {
       toast.error('复制失败，请手动复制');
