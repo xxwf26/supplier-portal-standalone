@@ -5,7 +5,7 @@ interface AuthUser { username: string; role: 'admin' | 'viewer'; }
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
   isLoggedIn: boolean;
@@ -17,6 +17,15 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false, isLoggedIn: false,
 });
 
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -26,16 +35,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setUser(parsed.user);
-        setToken(parsed.token);
-      } catch {}
+        if (parsed.token && !isTokenExpired(parsed.token)) {
+          setUser(parsed.user);
+          setToken(parsed.token);
+        } else {
+          // token 已过期，清除保存的 auth（但保留记住的账号密码）
+          localStorage.removeItem('auth');
+        }
+      } catch {
+        localStorage.removeItem('auth');
+      }
     }
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const res = await api.post('/api/auth/login', { username, password });
+  const login = useCallback(async (username: string, password: string, rememberMe = false) => {
+    const res = await api.post('/api/auth/login', { username, password, rememberMe });
     const auth = { user: res.data.user, token: res.data.access_token };
     localStorage.setItem('auth', JSON.stringify(auth));
+
+    if (rememberMe) {
+      localStorage.setItem('__saved_creds', JSON.stringify({ username, password }));
+    }
+
     setUser(auth.user);
     setToken(auth.token);
   }, []);

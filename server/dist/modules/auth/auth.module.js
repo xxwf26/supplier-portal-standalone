@@ -22,7 +22,7 @@ exports.AuthModule = AuthModule = __decorate([
             passport_1.PassportModule,
             jwt_1.JwtModule.register({
                 secret: 'supplier-portal-secret-key-2024',
-                signOptions: { expiresIn: '24h' },
+                signOptions: { expiresIn: '8h' },
             }),
         ],
         controllers: [auth_controller_1.AuthController],
