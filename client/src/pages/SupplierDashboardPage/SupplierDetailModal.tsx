@@ -1,11 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ExternalLinkIcon, MessageCircleIcon, StarIcon,
   TagIcon, BanknoteIcon, FileTextIcon, UploadIcon, Trash2Icon,
   PencilIcon, PlusIcon, LinkIcon, ImageIcon, XIcon, CheckIcon,
-  PhoneIcon, ShieldIcon,
+  PhoneIcon, ShieldIcon, ArchiveRestoreIcon,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle as AlertTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -154,6 +159,8 @@ export default function SupplierDetailModal({
 }: SupplierDetailModalProps) {
   const { isAdmin } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [artworkUrls, setArtworkUrls] = useState<string[]>([]);
   const [manualLinkEntries, setManualLinkEntries] = useState<ManualLinkEntry[]>([]);
@@ -171,6 +178,78 @@ export default function SupplierDetailModal({
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
+
+  const draftKey = supplier ? `__draft_edit_${supplier.id}` : null;
+
+  const saveDraft = useCallback(() => {
+    if (!draftKey || !isEditing) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
+        cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
+        styleTags, contactInfoText, supplierTypeVal,
+        savedAt: new Date().toISOString(),
+      }));
+    } catch {}
+  }, [draftKey, isEditing, artworkUrls, manualLinkEntries, priceItemEntries,
+    contactItemEntries, cooperationTypeVal, cooperationCountVal, ratingVal,
+    statusVal, styleTags, contactInfoText, supplierTypeVal]);
+
+  const clearDraft = useCallback(() => {
+    if (draftKey) localStorage.removeItem(draftKey);
+    setDraftSavedAt(null);
+  }, [draftKey]);
+
+  const restoreDraft = useCallback(() => {
+    if (!draftKey) return;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (!saved) return;
+      const d = JSON.parse(saved);
+      if (d.artworkUrls) setArtworkUrls(d.artworkUrls);
+      if (d.manualLinkEntries) setManualLinkEntries(d.manualLinkEntries);
+      if (d.priceItemEntries) setPriceItemEntries(d.priceItemEntries);
+      if (d.contactItemEntries) setContactItemEntries(d.contactItemEntries);
+      if (d.cooperationTypeVal !== undefined) setCooperationTypeVal(d.cooperationTypeVal);
+      if (d.cooperationCountVal !== undefined) setCooperationCountVal(d.cooperationCountVal);
+      if (d.ratingVal !== undefined) setRatingVal(d.ratingVal);
+      if (d.statusVal !== undefined) setStatusVal(d.statusVal);
+      if (d.styleTags) setStyleTags(d.styleTags);
+      if (d.contactInfoText !== undefined) setContactInfoText(d.contactInfoText);
+      if (d.supplierTypeVal !== undefined) setSupplierTypeVal(d.supplierTypeVal);
+    } catch {}
+    setDraftSavedAt(null);
+  }, [draftKey]);
+
+  // 草稿自动保存（编辑中）
+  useEffect(() => {
+    if (isEditing) saveDraft();
+  }, [isEditing, saveDraft]);
+
+  // 进入编辑时检查草稿
+  useEffect(() => {
+    if (!isEditing || !draftKey) { setDraftSavedAt(null); return; }
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.savedAt) setDraftSavedAt(d.savedAt);
+      }
+    } catch {}
+  }, [isEditing, draftKey]);
+
+  function timeAgo(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return '刚刚';
+    if (m < 60) return `${m} 分钟前`;
+    return `${Math.floor(m / 60)} 小时前`;
+  }
+
+  const handleWantsToClose = () => {
+    if (isEditing) { setShowConfirm(true); return; }
+    onClose();
+  };
 
   const resetForm = () => {
     if (!supplier) return;
@@ -360,6 +439,7 @@ export default function SupplierDetailModal({
         riskStatus: statusVal === 'blacklisted' ? '拉黑' : '暂无',
       });
       setIsEditing(false);
+      clearDraft();
       onSave();
     } catch (err) {
       logger.error('Save failed:', String(err));
@@ -372,6 +452,7 @@ export default function SupplierDetailModal({
     resetForm();
     setIsEditing(false);
     setConfirmingDelete(false);
+    clearDraft();
   };
 
   const handleDelete = async () => {
@@ -418,8 +499,14 @@ export default function SupplierDetailModal({
   const moduleBody = 'px-3 py-2.5';
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden" showCloseButton={false}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => !v && handleWantsToClose()}>
+      <DialogContent
+        className="max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden"
+        showCloseButton={false}
+        onPointerDownOutside={(e) => isEditing && e.preventDefault()}
+        onEscapeKeyDown={(e) => isEditing && e.preventDefault()}
+      >
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
           <div className="flex items-start justify-between gap-4">
@@ -468,6 +555,16 @@ export default function SupplierDetailModal({
             )}
           </div>
         </DialogHeader>
+
+        {/* 草稿恢复横幅（仅编辑模式下出现） */}
+        {isEditing && draftSavedAt && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 text-sm shrink-0">
+            <ArchiveRestoreIcon className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="flex-1 text-amber-800">发现上次未保存的草稿（{timeAgo(draftSavedAt)}）</span>
+            <button className="text-xs font-medium text-amber-700 underline underline-offset-2 mr-2" onClick={restoreDraft}>恢复草稿</button>
+            <button className="text-xs text-amber-500 hover:text-amber-700" onClick={() => { clearDraft(); }}>忽略</button>
+          </div>
+        )}
 
         <ScrollArea className="max-h-[calc(90vh-100px)]">
           <div className="px-4 py-4 space-y-3">
@@ -1021,5 +1118,25 @@ export default function SupplierDetailModal({
         </ScrollArea>
       </DialogContent>
     </Dialog>
+
+    {/* 放弃编辑确认 */}
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertTitle>放弃编辑？</AlertTitle>
+          <AlertDialogDescription>未保存的修改将会丢失。</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>继续编辑</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive hover:bg-destructive/90"
+            onClick={() => { handleCancel(); onClose(); }}
+          >
+            放弃
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
