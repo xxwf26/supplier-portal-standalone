@@ -27,20 +27,13 @@ function getInitialViewMode(): 'pc' | 'mobile' {
 // 转换API数据到前端格式
 function processSupplier(raw: ISupplier): IProcessedSupplier {
   let type: 'individual' | 'studio' | 'company' | 'artist';
-  switch (raw.supplierType) {
-    case '个人':
-      type = 'individual';
-      break;
-    case '艺术家':
-      type = 'artist';
-      break;
-    case '公司':
-    case '个体工商户':
-      type = 'company';
-      break;
-    default:
-      type = 'studio';
-      break;
+  const name = raw.accountName || '';
+  if (name.includes('工作室')) {
+    type = 'studio';
+  } else if (name.includes('公司') || name.includes('有限') || name.includes('股份')) {
+    type = 'company';
+  } else {
+    type = 'individual';
   }
 
   const styles: string[] = [];
