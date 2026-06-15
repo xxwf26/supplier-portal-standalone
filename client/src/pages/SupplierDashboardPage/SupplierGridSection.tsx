@@ -87,6 +87,23 @@ const styleColors: Record<string, string> = {
   写实: 'bg-blue-50 text-blue-600 border-blue-200',
   少女风: 'bg-pink-50 text-pink-600 border-pink-200',
   赛博朋克: 'bg-purple-50 text-purple-600 border-purple-200',
+  立绘: 'bg-green-50 text-green-600 border-green-200',
+  小物: 'bg-teal-50 text-teal-600 border-teal-200',
+  场景: 'bg-sky-50 text-sky-600 border-sky-200',
+  KKV: 'bg-indigo-50 text-indigo-600 border-indigo-200',
+  'L2D动效': 'bg-emerald-50 text-emerald-600 border-emerald-200',
+  手书: 'bg-rose-50 text-rose-600 border-rose-200',
+  '3D建模': 'bg-slate-50 text-slate-600 border-slate-200',
+  像素风: 'bg-lime-50 text-lime-600 border-lime-200',
+  推文长图: 'bg-stone-50 text-stone-600 border-stone-200',
+  解说视频: 'bg-sky-50 text-sky-600 border-sky-200',
+  逐帧动画: 'bg-orange-50 text-orange-600 border-orange-200',
+  包装视频: 'bg-violet-50 text-violet-600 border-violet-200',
+  'PV整包': 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200',
+  特效原画: 'bg-red-50 text-red-600 border-red-200',
+  广告投放: 'bg-amber-50 text-amber-600 border-amber-200',
+  活动搭建: 'bg-emerald-50 text-emerald-600 border-emerald-200',
+  达人合作: 'bg-pink-50 text-pink-600 border-pink-200',
 };
 
 const platformLabels: Record<string, string> = {
@@ -142,7 +159,7 @@ const SupplierCard = React.memo(function SupplierCard({
 
   const displayPrice = supplier.priceItems && supplier.priceItems.length > 0
     ? supplier.priceItems.map((p) => `${p.cooperationType} ${p.unitPrice}${p.priceUnit}`).join(' | ')
-    : (supplier.priceText || `${supplier.priceRange[0]}-${supplier.priceRange[1]}${supplier.priceUnit}`);
+    : (supplier.priceText || '');
 
   return (
     <motion.div
@@ -259,9 +276,11 @@ const SupplierCard = React.memo(function SupplierCard({
         </div>
 
         {/* Price Info */}
-        <div className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-          {displayPrice}
-        </div>
+        {displayPrice && (
+          <div className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+            {displayPrice}
+          </div>
+        )}
 
         {/* Contact Info */}
         {supplier.contactItems && supplier.contactItems.length > 0 && (

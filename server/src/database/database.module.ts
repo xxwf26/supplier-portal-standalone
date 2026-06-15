@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { drizzle, MySql2Database } from 'drizzle-orm/mysql2';
 import * as mysql from 'mysql2/promise';
 import * as schema from './schema';
+import * as filterConfigSchema from './filter-config.schema';
+
+const allSchemas = { ...schema, ...filterConfigSchema };
 
 export const DRIZZLE_DATABASE = 'DRIZZLE_DATABASE';
 
@@ -20,7 +23,7 @@ export const DRIZZLE_DATABASE = 'DRIZZLE_DATABASE';
           password: config.get<string>('DB_PASSWORD', ''),
           database: config.get<string>('DB_NAME', 'supplier_portal'),
         });
-        return drizzle(connection, { schema, mode: 'default' });
+        return drizzle(connection, { schema: allSchemas, mode: 'default' });
       },
     },
   ],
@@ -28,4 +31,4 @@ export const DRIZZLE_DATABASE = 'DRIZZLE_DATABASE';
 })
 export class DatabaseModule {}
 
-export type Database = MySql2Database<typeof schema>;
+export type Database = MySql2Database<typeof allSchemas>;

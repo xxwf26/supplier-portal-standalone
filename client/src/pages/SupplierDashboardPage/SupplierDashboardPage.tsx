@@ -47,19 +47,23 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
     cooperationTypes.push(...split);
   }
 
-  let priceRange: [number, number] = [500, 10000];
+  let priceRange: [number, number] = [0, 0];
+  let hasPrice = false;
   const priceItems = raw.priceItems || [];
   if (priceItems.length > 0) {
     const prices = priceItems.map((p) => p.unitPrice).filter((p) => p > 0);
     if (prices.length > 0) {
       priceRange = [Math.min(...prices), Math.max(...prices)];
+      hasPrice = true;
     }
   } else if (raw.priceRange && typeof raw.priceRange === 'string') {
     const numbers = raw.priceRange.split(/[~-]/).map((n) => parseFloat(n.trim())).filter((n) => !isNaN(n));
     if (numbers.length === 2) {
       priceRange = [numbers[0], numbers[1]] as [number, number];
+      hasPrice = true;
     } else if (numbers.length === 1) {
       priceRange = [numbers[0], numbers[0]];
+      hasPrice = true;
     }
   }
 
@@ -135,7 +139,7 @@ export default function SupplierDashboardPage() {
   const [currentFilters, setCurrentFilters] = useState<IFilterState | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const { isAdmin, user, logout } = useAuth();
+  const { isAdmin } = useAuth();
 
   const processedSuppliers = useMemo(() => {
     if (!Array.isArray(rawSuppliers)) return [];
@@ -175,8 +179,9 @@ export default function SupplierDashboardPage() {
 
     result = result.filter(
       (s) =>
-        s.priceRange[0] >= currentFilters.priceRange[0] &&
-        s.priceRange[1] <= currentFilters.priceRange[1]
+        (s.priceRange[0] === 0 && s.priceRange[1] === 0) || // 无报价数据不过滤
+        (s.priceRange[0] >= currentFilters.priceRange[0] &&
+         s.priceRange[1] <= currentFilters.priceRange[1])
     );
 
     return result;
@@ -339,10 +344,6 @@ export default function SupplierDashboardPage() {
               共 <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> 个供应商
             </p>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground mr-1">
-                {user?.username} ({isAdmin ? '管理员' : '仅查看'})
-              </span>
-              <Button variant="ghost" size="sm" onClick={logout} className="text-xs">退出</Button>
               {isAdmin && (
                 <>
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsImportOpen(true)}>

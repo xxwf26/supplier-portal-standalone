@@ -9,11 +9,14 @@ import { ViewModule } from './modules/view/view.module';
 
 import { AuthModule } from './modules/auth/auth.module';
 
+import { ConfigModule as AppConfigModule } from './modules/config/config.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
     AuthModule,
+    AppConfigModule,
     SupplierModule,
     UploadModule,
     // ViewModule must be registered last as catch-all route

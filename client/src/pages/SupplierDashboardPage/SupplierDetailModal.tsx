@@ -3,7 +3,7 @@ import {
   ExternalLinkIcon, MessageCircleIcon, StarIcon,
   TagIcon, BanknoteIcon, FileTextIcon, UploadIcon, Trash2Icon,
   PencilIcon, PlusIcon, LinkIcon, ImageIcon, XIcon, CheckIcon,
-  PhoneIcon, ShieldIcon,
+  PhoneIcon, ShieldIcon, Building2Icon,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -26,6 +27,8 @@ import { logger } from '@/lib/polyfills/logger';
 import { getDataloom } from '@/lib/polyfills/storage';
 import { getDefaultBucketId } from '@/lib/polyfills/storage';
 import { useAuth } from '@/lib/auth';
+import { useFilterOptions } from '@/hooks/useFilterOptions';
+import { supplierTypeToBackend } from '@/lib/filterConfig';
 
 const typeConfig = {
   individual: { label: '个人画师', color: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -34,53 +37,11 @@ const typeConfig = {
   company: { label: '公司', color: 'bg-amber-100 text-amber-700 border-amber-200' },
 };
 
-const SUPPLIER_TYPE_OPTIONS = [
-  { value: '个人', label: '个人画师' },
-  { value: '艺术家', label: '艺术家' },
-  { value: '工作室', label: '工作室' },
-  { value: '公司', label: '公司' },
-];
-
-const supplierTypeLabel: Record<string, string> = {
-  '个人': '个人画师', '艺术家': '艺术家', '工作室': '工作室', '公司': '公司',
-};
-
 const statusConfig = {
   in_stock: { label: '库内合作', color: 'bg-green-100 text-green-700 border-green-200', dotColor: 'bg-green-500' },
   outreach: { label: '库外建联', color: 'bg-blue-100 text-blue-700 border-blue-200', dotColor: 'bg-blue-500' },
   blacklisted: { label: '已拉黑', color: 'bg-gray-100 text-gray-600 border-gray-200', dotColor: 'bg-gray-400' },
 };
-
-const STYLE_PRESETS = ['Q版', '正比', '古风', '欧风', '写实', '少女风', '赛博朋克', '立绘', '小物', '场景', 'KKV'];
-
-const styleColors: Record<string, string> = {
-  古风: 'bg-red-100 text-red-700 border-red-200',
-  'Q版': 'bg-amber-100 text-amber-700 border-amber-200',
-  正比: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  欧风: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-  写实: 'bg-blue-100 text-blue-700 border-blue-200',
-  少女风: 'bg-pink-100 text-pink-700 border-pink-200',
-  赛博朋克: 'bg-purple-100 text-purple-700 border-purple-200',
-};
-
-const PLATFORM_OPTIONS = [
-  { value: 'xiaohongshu', label: '小红书' },
-  { value: 'weibo', label: '微博' },
-  { value: 'mihuashi', label: '米画师' },
-  { value: 'x', label: 'X' },
-];
-
-const COOPERATION_TYPE_OPTIONS = [
-  { value: '角色原画', label: '角色原画' },
-  { value: '场景原画', label: '场景原画' },
-  { value: '平面海报', label: '平面海报' },
-  { value: 'UI图标', label: 'UI图标' },
-  { value: '视频动效', label: '视频动效' },
-  { value: '平面拍摄', label: '平面拍摄' },
-  { value: '视频拍摄', label: '视频拍摄' },
-  { value: '达人营销', label: '达人营销' },
-  { value: '驻场合作', label: '驻场合作' },
-];
 
 const PRICE_UNIT_OPTIONS = [
   { value: '元/张', label: '元/张' },
@@ -95,6 +56,13 @@ const CONTACT_TYPE_OPTIONS = [
   { value: 'wechat', label: '微信' },
   { value: 'qq', label: 'QQ' },
   { value: 'phone', label: '电话' },
+];
+
+const PLATFORM_OPTIONS = [
+  { value: 'xiaohongshu', label: '小红书' },
+  { value: 'weibo', label: '微博' },
+  { value: 'mihuashi', label: '米画师' },
+  { value: 'x', label: 'X' },
 ];
 
 const platformLabels: Record<string, string> = {
@@ -153,19 +121,42 @@ export default function SupplierDetailModal({
   onDelete,
 }: SupplierDetailModalProps) {
   const { isAdmin } = useAuth();
+  const filterConfig = useFilterOptions();
+
+  // 动态选项
+  const supplierTypeOptions = filterConfig.supplierType.map((o) => ({
+    value: o.label,
+    label: o.label,
+  }));
+  const cooperationTypeOptions = filterConfig.cooperationType.map((o) => ({
+    value: o.value,
+    label: o.label,
+  }));
+  const stylePresets = filterConfig.style.map((o) => o.value);
+  const projectOptions = filterConfig.project.map((o) => o.value);
+
+  // 动态风格颜色
+  const styleColorMap: Record<string, string> = {};
+  filterConfig.style.forEach((o) => {
+    if (o.color) {
+      styleColorMap[o.value] = `bg-${o.color}-100 text-${o.color}-700 border-${o.color}-200`;
+    }
+  });
+
   const [isEditing, setIsEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [artworkUrls, setArtworkUrls] = useState<string[]>([]);
   const [manualLinkEntries, setManualLinkEntries] = useState<ManualLinkEntry[]>([]);
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
   const [contactItemEntries, setContactItemEntries] = useState<ContactItemEntry[]>([]);
-  const [cooperationTypeVal, setCooperationTypeVal] = useState('');
+  const [cooperationTypeVal, setCooperationTypeVal] = useState<string[]>([]);
   const [cooperationCountVal, setCooperationCountVal] = useState('');
   const [ratingVal, setRatingVal] = useState('');
   const [statusVal, setStatusVal] = useState('');
   const [styleTags, setStyleTags] = useState<string[]>([]);
   const [contactInfoText, setContactInfoText] = useState('');
   const [supplierTypeVal, setSupplierTypeVal] = useState('');
+  const [entityTypeVal, setEntityTypeVal] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -192,11 +183,16 @@ export default function SupplierDetailModal({
         value: c.value,
       }))
     );
-    setCooperationTypeVal(supplier.cooperationType || '');
-    setCooperationCountVal(String(supplier.cooperationCount || 0));
-    setRatingVal(supplier.rating != null ? String(supplier.rating) : '');
-    setStatusVal(getStatusFromData(supplier));
-    setSupplierTypeVal(supplier.supplierType || '');
+    setCooperationTypeVal(
+        supplier.cooperationType
+          ? supplier.cooperationType.split(/[/、，]/).map((s: string) => s.trim()).filter(Boolean)
+          : []
+      );
+      setEntityTypeVal(supplier.entityType || '');
+      setCooperationCountVal(String(supplier.cooperationCount || 0));
+      setRatingVal(supplier.rating != null ? String(supplier.rating) : '');
+      setStatusVal(getStatusFromData(supplier));
+      setSupplierTypeVal(supplier.supplierType || '');
     setStyleTags(
       supplier.subCategory
         ? supplier.subCategory.split(/[\/、，]/).map((s) => s.trim()).filter(Boolean)
@@ -350,12 +346,13 @@ export default function SupplierDetailModal({
         manualLinks: manualLinksRecord,
         priceItems,
         contactItems,
-        cooperationType: cooperationTypeVal || undefined,
+        cooperationType: cooperationTypeVal.length > 0 ? cooperationTypeVal.join('、') : undefined,
         cooperationCount: cooperationCountVal ? Number(cooperationCountVal) : 0,
         rating: ratingVal ? Number(ratingVal) : undefined,
         subCategory: styleTags.join('、') || undefined,
         contactInfo: contactInfoText,
-        supplierType: supplierTypeVal || undefined,
+        supplierType: supplierTypeVal ? supplierTypeToBackend(supplierTypeVal) : undefined,
+        entityType: entityTypeVal || undefined,
         isInStock: statusVal === 'in_stock',
         riskStatus: statusVal === 'blacklisted' ? '拉黑' : '暂无',
       });
@@ -411,7 +408,13 @@ export default function SupplierDetailModal({
   const displayStyles = supplier.subCategory
     ? supplier.subCategory.split(/[\/、，]/).map((s) => s.trim()).filter(Boolean)
     : [];
-  const availablePresets = STYLE_PRESETS.filter((p) => !styleTags.includes(p));
+  const toggleCooperationType = (value: string) => {
+    setCooperationTypeVal((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  const availablePresets = stylePresets.filter((p: string) => !styleTags.includes(p));
 
   const moduleBase = 'rounded-xl border border-border/60 bg-card overflow-hidden';
   const moduleHeader = 'flex items-center gap-1.5 px-3 py-2 bg-muted/40 border-b border-border/40';
@@ -441,7 +444,7 @@ export default function SupplierDetailModal({
                       <SelectValue placeholder="选择类型" />
                     </SelectTrigger>
                     <SelectContent>
-                      {SUPPLIER_TYPE_OPTIONS.map(o => (
+                      {supplierTypeOptions.map(o => (
                         <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                       ))}
                     </SelectContent>
@@ -632,7 +635,7 @@ export default function SupplierDetailModal({
                               variant="outline"
                               className={cn(
                                 'text-[10px] cursor-pointer group',
-                                styleColors[style] || 'bg-muted text-muted-foreground border-border'
+                                styleColorMap[style] || 'bg-muted text-muted-foreground border-border'
                               )}
                             >
                               {style}
@@ -687,7 +690,7 @@ export default function SupplierDetailModal({
                             variant="outline"
                             className={cn(
                               'text-[10px]',
-                              styleColors[style] || 'bg-muted text-muted-foreground border-border'
+                              styleColorMap[style] || 'bg-muted text-muted-foreground border-border'
                             )}
                           >
                             {style}
@@ -709,23 +712,29 @@ export default function SupplierDetailModal({
                 </div>
                 <div className={moduleBody}>
                   {isEditing ? (
-                    <Select value={cooperationTypeVal} onValueChange={setCooperationTypeVal}>
-                      <SelectTrigger className="h-7 text-xs">
-                        <SelectValue placeholder="选择合作类型" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COOPERATION_TYPE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
+                    <div className="space-y-1 max-h-[180px] overflow-y-auto">
+                      {cooperationTypeOptions.map((opt) => (
+                        <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer group">
+                          <Checkbox
+                            checked={cooperationTypeVal.includes(opt.value)}
+                            onCheckedChange={() => toggleCooperationType(opt.value)}
+                            className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                          />
+                          <span className="text-[10px] text-foreground group-hover:text-primary transition-colors">
                             {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   ) : (
                     supplier.cooperationType ? (
-                      <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
-                        {supplier.cooperationType}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {supplier.cooperationType.split(/[\/、，]/).map((s) => s.trim()).filter(Boolean).map((ct) => (
+                          <Badge key={ct} variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                            {ct}
+                          </Badge>
+                        ))}
+                      </div>
                     ) : (
                       <p className="text-xs text-muted-foreground text-center py-1">未设置</p>
                     )
@@ -761,7 +770,7 @@ export default function SupplierDetailModal({
                             <SelectValue placeholder="类型" />
                           </SelectTrigger>
                           <SelectContent>
-                            {COOPERATION_TYPE_OPTIONS.map((opt) => (
+                            {cooperationTypeOptions.map((opt) => (
                               <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                             ))}
                           </SelectContent>
@@ -987,6 +996,36 @@ export default function SupplierDetailModal({
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground text-center py-1">暂无备注</p>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Row 7: 历史参与项目 (full width) */}
+            <div className={cn(moduleBase)}>
+              <div className={moduleHeader}>
+                <Building2Icon className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold">历史参与项目</span>
+              </div>
+              <div className={moduleBody}>
+                {isEditing ? (
+                  <Select value={entityTypeVal} onValueChange={setEntityTypeVal}>
+                    <SelectTrigger className="h-7 text-xs w-full">
+                      <SelectValue placeholder="选择项目" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projectOptions.map((opt: string) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  supplier.entityType ? (
+                    <Badge variant="outline" className="text-[10px] bg-accent text-accent-foreground">
+                      {supplier.entityType}
+                    </Badge>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-1">未设置</p>
                   )
                 )}
               </div>

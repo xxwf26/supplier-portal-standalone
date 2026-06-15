@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import {
   Select,
@@ -18,30 +19,8 @@ import { IPriceItem, IContactItem } from '@/api/types';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/polyfills/logger';
 import { toast } from 'sonner';
-
-const SUPPLIER_TYPE_OPTIONS = [
-  { value: '个人', label: '个人画师' },
-  { value: '艺术家', label: '艺术家' },
-  { value: '工作室', label: '工作室' },
-  { value: '公司', label: '公司' },
-  { value: '个体工商户', label: '个体工商户' },
-];
-
-const COOPERATION_CATEGORY_OPTIONS = [
-  '原画', '视频', '建模', '平面设计', '文案', '编舞', '笔替', '市场推广',
-];
-
-const COOPERATION_TYPE_OPTIONS = [
-  { value: '角色原画', label: '角色原画' },
-  { value: '场景原画', label: '场景原画' },
-  { value: '平面海报', label: '平面海报' },
-  { value: 'UI图标', label: 'UI图标' },
-  { value: '视频动效', label: '视频动效' },
-  { value: '平面拍摄', label: '平面拍摄' },
-  { value: '视频拍摄', label: '视频拍摄' },
-  { value: '达人营销', label: '达人营销' },
-  { value: '驻场合作', label: '驻场合作' },
-];
+import { useFilterOptions } from '@/hooks/useFilterOptions';
+import { supplierTypeToBackend } from '@/lib/filterConfig';
 
 const PRICE_UNIT_OPTIONS = [
   { value: '元/张', label: '元/张' },
@@ -58,28 +37,12 @@ const CONTACT_TYPE_OPTIONS = [
   { value: 'phone', label: '电话' },
 ];
 
-const STYLE_PRESETS = ['Q版', '正比', '古风', '欧风', '写实', '少女风', '赛博朋克', '立绘', '小物', '场景', 'KKV'];
-
-const PROJECT_OPTIONS = [
-  '恋与制作人', '深空', '闪暖', '无暖', '无期迷途', 'IP开发中心', '通用',
-];
-
 const PLATFORM_OPTIONS = [
   { value: 'xiaohongshu', label: '小红书' },
   { value: 'weibo', label: '微博' },
   { value: 'mihuashi', label: '米画师' },
   { value: 'x', label: 'X' },
 ];
-
-const styleColors: Record<string, string> = {
-  古风: 'bg-red-100 text-red-700 border-red-200',
-  'Q版': 'bg-amber-100 text-amber-700 border-amber-200',
-  正比: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  欧风: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-  写实: 'bg-blue-100 text-blue-700 border-blue-200',
-  少女风: 'bg-pink-100 text-pink-700 border-pink-200',
-  赛博朋克: 'bg-purple-100 text-purple-700 border-purple-200',
-};
 
 interface LinkEntry {
   platform: string;
@@ -106,12 +69,33 @@ interface NewSupplierModalProps {
 const MAX_PRICE_ITEMS = 5;
 
 export default function NewSupplierModal({ open, onClose, onCreated }: NewSupplierModalProps) {
+  const filterConfig = useFilterOptions();
+
+  // 动态选项
+  const supplierTypeOptions = filterConfig.supplierType.map((o) => ({
+    value: o.label, // 用 label 推算后端值
+    label: o.label,
+  }));
+  const cooperationTypeOptions = filterConfig.cooperationType.map((o) => ({
+    value: o.value,
+    label: o.label,
+  }));
+  const stylePresets = filterConfig.style.map((o) => o.value);
+  const projectOptions = filterConfig.project.map((o) => o.value);
+
+  // 根据 config 颜色值生成 style badge 样式
+  const styleColorMap: Record<string, string> = {};
+  filterConfig.style.forEach((o) => {
+    if (o.color) {
+      styleColorMap[o.value] = `bg-${o.color}-100 text-${o.color}-700 border-${o.color}-200`;
+    }
+  });
+
   const [saving, setSaving] = useState(false);
 
   const [accountName, setAccountName] = useState('');
   const [supplierType, setSupplierType] = useState('');
-  const [cooperationCategory, setCooperationCategory] = useState('');
-  const [cooperationType, setCooperationType] = useState('');
+  const [cooperationTypes, setCooperationTypes] = useState<string[]>([]);
   const [contactInfo, setContactInfo] = useState('');
   const [entityType, setEntityType] = useState('');
   const [styleTags, setStyleTags] = useState<string[]>([]);
@@ -123,8 +107,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   const resetForm = () => {
     setAccountName('');
     setSupplierType('');
-    setCooperationCategory('');
-    setCooperationType('');
+    setCooperationTypes([]);
     setContactInfo('');
     setEntityType('');
     setStyleTags([]);
@@ -194,6 +177,12 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
     setContactItemEntries((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const toggleCooperationType = (value: string) => {
+    setCooperationTypes((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
   const handleSubmit = async () => {
     if (!accountName.trim()) {
       toast.error('请填写供应商名称');
@@ -223,9 +212,8 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
 
       await supplierApi.create({
         accountName: accountName.trim(),
-        supplierType: supplierType || undefined,
-        cooperationCategory: cooperationCategory || undefined,
-        cooperationType: cooperationType || undefined,
+        supplierType: supplierType ? supplierTypeToBackend(supplierType) : undefined,
+        cooperationType: cooperationTypes.length > 0 ? cooperationTypes.join('、') : undefined,
         contactInfo: contactInfo || undefined,
         entityType: entityType || undefined,
         subCategory: styleTags.join('、') || undefined,
@@ -245,7 +233,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
     }
   };
 
-  const availablePresets = STYLE_PRESETS.filter((p) => !styleTags.includes(p));
+  const availablePresets = stylePresets.filter((p) => !styleTags.includes(p));
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -280,55 +268,46 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
                     <SelectValue placeholder="选择类型" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SUPPLIER_TYPE_OPTIONS.map((opt) => (
+                    {supplierTypeOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div>
+              <div className="col-span-2">
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                   合作类型
                 </label>
-                <Select value={cooperationType} onValueChange={setCooperationType}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="选择合作类型" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COOPERATION_TYPE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
+                  {cooperationTypeOptions.map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer group">
+                      <Checkbox
+                        checked={cooperationTypes.includes(opt.value)}
+                        onCheckedChange={() => toggleCooperationType(opt.value)}
+                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                      <span className="text-sm text-foreground group-hover:text-primary transition-colors">
+                        {opt.label}
+                      </span>
+                    </label>
+                  ))}
+                  {cooperationTypeOptions.length === 0 && (
+                    <p className="text-xs text-muted-foreground">暂无合作类型选项</p>
+                  )}
+                </div>
               </div>
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                  合作品类
-                </label>
-                <Select value={cooperationCategory} onValueChange={setCooperationCategory}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="选择品类" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COOPERATION_CATEGORY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                  所属项目
+                  历史参与项目
                 </label>
                 <Select value={entityType} onValueChange={setEntityType}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="选择项目" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PROJECT_OPTIONS.map((opt) => (
+                    {projectOptions.map((opt) => (
                       <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                     ))}
                   </SelectContent>
@@ -350,7 +329,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
                         <SelectValue placeholder="合作类型" />
                       </SelectTrigger>
                       <SelectContent>
-                        {COOPERATION_TYPE_OPTIONS.map((opt) => (
+                        {cooperationTypeOptions.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                         ))}
                       </SelectContent>
@@ -436,7 +415,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
                       variant="outline"
                       className={cn(
                         'text-xs cursor-pointer',
-                        styleColors[style] || 'bg-muted text-muted-foreground border-border'
+                        styleColorMap[style] || 'bg-muted text-muted-foreground border-border'
                       )}
                     >
                       {style}
