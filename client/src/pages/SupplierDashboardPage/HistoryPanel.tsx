@@ -265,9 +265,10 @@ function LogsTab({ onDataChange }: { onDataChange?: () => void }) {
   useEffect(() => { load(page); }, [load, page]);
 
   const handleRollbackSuccess = useCallback(() => {
-    load(page);
+    setPage(1);
+    load(1);
     onDataChange?.();
-  }, [load, page, onDataChange]);
+  }, [load, onDataChange]);
 
   const totalPages = Math.ceil(total / LIMIT);
 
@@ -314,6 +315,13 @@ function BatchesTab({ onDataChange }: { onDataChange?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [rolling, setRolling] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
+
+  // 确认状态 5s 后自动重置，与 LogCard 行为保持一致
+  useEffect(() => {
+    if (!confirm) return;
+    const timer = setTimeout(() => setConfirm(null), 5000);
+    return () => clearTimeout(timer);
+  }, [confirm]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -396,8 +404,16 @@ function SnapshotsTab() {
       const res = await auditApi.createSnapshot();
       toast.success(`快照已创建：${res.filename}（${formatSize(res.size)}）`);
       load();
-    } catch {
-      toast.error('快照创建失败，请检查 mysqldump 是否可用');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message || err?.message || '未知错误';
+      const status = err?.response?.status;
+      if (status === 403) {
+        toast.error('权限不足，需要管理员账号');
+      } else if (status === 401) {
+        toast.error('登录已过期，请重新登录');
+      } else {
+        toast.error(`快照创建失败：${msg}`);
+      }
     } finally {
       setCreating(false);
     }

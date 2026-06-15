@@ -17,6 +17,8 @@ import {
 import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import HistoryPanel from './HistoryPanel';
+import { inferSupplierType } from '@/lib/supplierUtils';
+import { normalizeForSearch } from '@/lib/chineseNormalize';
 
 type SortKey = 'default' | 'ratingDesc' | 'ratingAsc' | 'countDesc' | 'countAsc' | 'recent';
 
@@ -41,15 +43,7 @@ function getInitialViewMode(): 'pc' | 'mobile' {
 
 // 转换API数据到前端格式
 function processSupplier(raw: ISupplier): IProcessedSupplier {
-  let type: 'individual' | 'studio' | 'company' | 'artist';
-  const name = raw.accountName || '';
-  if (name.includes('工作室')) {
-    type = 'studio';
-  } else if (name.includes('公司') || name.includes('有限') || name.includes('股份')) {
-    type = 'company';
-  } else {
-    type = 'individual';
-  }
+  const type = inferSupplierType(raw.accountName || '', raw.supplierType);
 
   const styles: string[] = [];
   if (raw.subCategory) {
@@ -101,10 +95,10 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
   }
 
   const links: Record<string, string> = {};
-  Object.entries(raw.socialLinks).forEach(([key, url]) => {
+  Object.entries(raw.socialLinks || {}).forEach(([key, url]) => {
     if (url) links[key] = url;
   });
-  Object.entries(raw.manualLinks).forEach(([key, url]) => {
+  Object.entries(raw.manualLinks || {}).forEach(([key, url]) => {
     if (url) links[key] = url;
   });
 
@@ -227,12 +221,12 @@ export default function SupplierDashboardPage() {
   const displaySuppliers = useMemo(() => {
     let result = filteredSuppliers;
 
-    const kw = keyword.trim().toLowerCase();
+    const kw = normalizeForSearch(keyword.trim());
     if (kw) {
       result = result.filter(
         (s) =>
-          s.name.toLowerCase().includes(kw) ||
-          (s.notes && s.notes.toLowerCase().includes(kw))
+          normalizeForSearch(s.name).includes(kw) ||
+          (s.notes && normalizeForSearch(s.notes).includes(kw))
       );
     }
 
@@ -554,7 +548,7 @@ export default function SupplierDashboardPage() {
           {/* 浮动筛选按钮 */}
           <button
             onClick={() => setIsMobileFilterOpen(true)}
-            className="fixed bottom-6 left-4 z-40 flex items-center gap-2 bg-primary text-white rounded-full px-4 py-2.5 shadow-lg active:scale-95 transition-transform"
+            className={`fixed ${selectedIds.size > 0 ? 'bottom-20' : 'bottom-6'} left-4 z-40 flex items-center gap-2 bg-primary text-white rounded-full px-4 py-2.5 shadow-lg active:scale-95 transition-all duration-200`}
           >
             <FilterIcon className="w-4 h-4" />
             <span className="text-sm font-medium">筛选</span>

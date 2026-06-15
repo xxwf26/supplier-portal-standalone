@@ -35,6 +35,8 @@ import { getDefaultBucketId } from '@/lib/polyfills/storage';
 import { useAuth } from '@/lib/auth';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import { supplierTypeToBackend } from '@/lib/filterConfig';
+import { inferSupplierType } from '@/lib/supplierUtils';
+import { LimitedTextarea } from '@/components/ui/limited-textarea';
 
 const typeConfig = {
   individual: { label: '个人画师', color: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -186,7 +188,7 @@ function LightboxOverlay({
 
       {/* 缩略图导航栏（多图时） */}
       {total > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 bg-black/40 rounded-full">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 bg-black/40 rounded-2xl overflow-x-auto max-w-[80vw]">
           {urls.map((url, i) => (
             <button
               key={i}
@@ -266,20 +268,6 @@ export default function SupplierDetailModal({
 
   const draftKey = supplier ? `__draft_edit_${supplier.id}` : null;
 
-  const saveDraft = useCallback(() => {
-    if (!draftKey || !isEditing) return;
-    try {
-      localStorage.setItem(draftKey, JSON.stringify({
-        artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
-        cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
-        styleTags, contactInfoText, supplierTypeVal,
-        savedAt: new Date().toISOString(),
-      }));
-    } catch {}
-  }, [draftKey, isEditing, artworkUrls, manualLinkEntries, priceItemEntries,
-    contactItemEntries, cooperationTypeVal, cooperationCountVal, ratingVal,
-    statusVal, styleTags, contactInfoText, supplierTypeVal]);
-
   const clearDraft = useCallback(() => {
     if (draftKey) localStorage.removeItem(draftKey);
     setDraftSavedAt(null);
@@ -302,14 +290,28 @@ export default function SupplierDetailModal({
       if (d.styleTags) setStyleTags(d.styleTags);
       if (d.contactInfoText !== undefined) setContactInfoText(d.contactInfoText);
       if (d.supplierTypeVal !== undefined) setSupplierTypeVal(d.supplierTypeVal);
+      if (d.entityTypeVal !== undefined) setEntityTypeVal(d.entityTypeVal);
     } catch {}
     setDraftSavedAt(null);
   }, [draftKey]);
 
-  // 草稿自动保存（编辑中）
+  // 草稿自动保存（编辑中，防抖 400ms）
   useEffect(() => {
-    if (isEditing) saveDraft();
-  }, [isEditing, saveDraft]);
+    if (!isEditing || !draftKey) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({
+          artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
+          cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
+          styleTags, contactInfoText, supplierTypeVal, entityTypeVal,
+          savedAt: new Date().toISOString(),
+        }));
+      } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [isEditing, draftKey, artworkUrls, manualLinkEntries, priceItemEntries,
+    contactItemEntries, cooperationTypeVal, cooperationCountVal, ratingVal,
+    statusVal, styleTags, contactInfoText, supplierTypeVal, entityTypeVal]);
 
   // 进入编辑时检查草稿
   useEffect(() => {
@@ -569,13 +571,7 @@ export default function SupplierDetailModal({
   Object.entries(supplier.socialLinks || {}).forEach(([k, v]) => { if (v) allLinks[k] = v; });
   Object.entries(supplier.manualLinks || {}).forEach(([k, v]) => { if (v) allLinks[k] = v; });
 
-  let type: 'individual' | 'studio' | 'company';
-  switch (supplier.supplierType) {
-    case '个人': type = 'individual'; break;
-    case '公司':
-    case '个体工商户': type = 'company'; break;
-    default: type = 'studio'; break;
-  }
+  const type = inferSupplierType(supplier.accountName || '', supplier.supplierType);
 
   const status = getStatusFromData(supplier);
   const typeInfo = typeConfig[type];
@@ -812,7 +808,16 @@ export default function SupplierDetailModal({
                             src={url}
                             alt={`作品 ${index + 1}`}
                             className="h-full w-auto max-w-[360px] object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                            onError={(e) => {
+                              const img = e.currentTarget;
+                              img.style.display = 'none';
+                              const fb = img.nextElementSibling as HTMLElement | null;
+                              if (fb) fb.style.display = 'flex';
+                            }}
                           />
+                          <div className="hidden w-full h-full items-center justify-center bg-muted text-muted-foreground/30">
+                            <ImageIcon className="w-8 h-8" />
+                          </div>
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
                             <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs bg-black/50 px-2 py-1 rounded-full">查看大图</span>
                           </div>
@@ -844,7 +849,7 @@ export default function SupplierDetailModal({
                               key={style}
                               variant="outline"
                               className={cn(
-                                'text-[10px] cursor-pointer group',
+                                'text-xs cursor-pointer group',
                                 styleColorMap[style] || 'bg-muted text-muted-foreground border-border'
                               )}
                             >
@@ -865,7 +870,7 @@ export default function SupplierDetailModal({
                             <button
                               key={preset}
                               onClick={() => addStyleTag(preset)}
-                              className="px-1.5 py-0 rounded-full text-[10px] border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                              className="px-1.5 py-0.5 rounded-full text-xs border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                             >
                               + {preset}
                             </button>
@@ -884,7 +889,7 @@ export default function SupplierDetailModal({
                               handleAddTagFromInput();
                             }
                           }}
-                          className="flex-1 text-[10px] h-6"
+                          className="flex-1 text-xs h-7"
                         />
                         <Button variant="outline" size="sm" onClick={handleAddTagFromInput} className="h-6 w-6 p-0">
                           <PlusIcon className="w-3 h-3" />
@@ -899,7 +904,7 @@ export default function SupplierDetailModal({
                             key={style}
                             variant="outline"
                             className={cn(
-                              'text-[10px]',
+                              'text-xs',
                               styleColorMap[style] || 'bg-muted text-muted-foreground border-border'
                             )}
                           >
@@ -930,7 +935,7 @@ export default function SupplierDetailModal({
                             onCheckedChange={() => toggleCooperationType(opt.value)}
                             className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                           />
-                          <span className="text-[10px] text-foreground group-hover:text-primary transition-colors">
+                          <span className="text-xs text-foreground group-hover:text-primary transition-colors">
                             {opt.label}
                           </span>
                         </label>
@@ -940,7 +945,7 @@ export default function SupplierDetailModal({
                     supplier.cooperationType ? (
                       <div className="flex flex-wrap gap-1">
                         {supplier.cooperationType.split(/[\/、，]/).map((s) => s.trim()).filter(Boolean).map((ct) => (
-                          <Badge key={ct} variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                          <Badge key={ct} variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
                             {ct}
                           </Badge>
                         ))}
@@ -1193,19 +1198,13 @@ export default function SupplierDetailModal({
               </div>
               <div className={moduleBody}>
                 {isEditing ? (
-                  <div>
-                    <Textarea
-                      value={contactInfoText}
-                      onChange={(e) => setContactInfoText(e.target.value.slice(0, 500))}
-                      placeholder="特殊要求等"
-                      className="min-h-[120px] text-xs resize-none"
-                    />
-                    <div className="flex justify-end mt-1">
-                      <span className={`text-[11px] tabular-nums ${contactInfoText.length >= 500 ? 'text-destructive font-medium' : contactInfoText.length >= 400 ? 'text-orange-500' : 'text-muted-foreground'}`}>
-                        {contactInfoText.length} / 500
-                      </span>
-                    </div>
-                  </div>
+                  <LimitedTextarea
+                    value={contactInfoText}
+                    onChange={setContactInfoText}
+                    placeholder="特殊要求等"
+                    className="text-xs"
+                    minHeight="min-h-[120px]"
+                  />
                 ) : (
                   supplier.contactInfo ? (
                     <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">

@@ -11,14 +11,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // 启动时读取保存的账号密码
+  // 启动时只回填用户名（密码不存储），让浏览器密码管理器处理密码
   useEffect(() => {
     try {
       const saved = localStorage.getItem('__saved_creds');
       if (saved) {
         const creds = JSON.parse(saved);
         setUsername(creds.username ?? '');
-        setPassword(creds.password ?? '');
         setRememberMe(true);
       }
     } catch {}
@@ -103,7 +102,7 @@ export default function LoginPage() {
               <span className="text-sm text-[#465260]">记住我</span>
             </label>
             <span className="text-xs text-[#687382]">
-              有效期 30 天
+              {rememberMe ? '有效期 30 天' : '有效期 8 小时'}
             </span>
           </div>
 
