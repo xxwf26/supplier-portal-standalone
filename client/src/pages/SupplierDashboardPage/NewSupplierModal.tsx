@@ -121,20 +121,20 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
   const [contactItemEntries, setContactItemEntries] = useState<ContactItemEntry[]>([]);
 
-  const isDirty = accountName.trim() !== '' || supplierType !== '' || cooperationCategory !== '' ||
-    cooperationType !== '' || contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
+  const isDirty = accountName.trim() !== '' || supplierType !== '' || cooperationTypes.length > 0 ||
+    contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
     priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0;
 
   // 草稿自动保存
   useEffect(() => {
     if (!open || !isDirty) return;
     const draft = {
-      accountName, supplierType, cooperationCategory, cooperationType,
+      accountName, supplierType, cooperationTypes,
       contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
       contactItemEntries, savedAt: new Date().toISOString(),
     };
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
-  }, [open, isDirty, accountName, supplierType, cooperationCategory, cooperationType,
+  }, [open, isDirty, accountName, supplierType, cooperationTypes,
     contactInfo, entityType, styleTags, linkEntries, priceItemEntries, contactItemEntries]);
 
   // 打开时检测草稿
@@ -156,8 +156,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
       const d = JSON.parse(saved);
       setAccountName(d.accountName ?? '');
       setSupplierType(d.supplierType ?? '');
-      setCooperationCategory(d.cooperationCategory ?? '');
-      setCooperationType(d.cooperationType ?? '');
+      setCooperationTypes(d.cooperationTypes ?? []);
       setContactInfo(d.contactInfo ?? '');
       setEntityType(d.entityType ?? '');
       setStyleTags(d.styleTags ?? []);
