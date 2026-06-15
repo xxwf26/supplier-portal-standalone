@@ -19,6 +19,7 @@ import { ConfigModule as AppConfigModule } from './modules/config/config.module'
     AuditModule,
     SupplierModule,
     UploadModule,
+    AppConfigModule,
     // ViewModule must be registered last as catch-all route
     ViewModule,
   ],

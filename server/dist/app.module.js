@@ -17,6 +17,7 @@ const upload_module_1 = require("./modules/upload/upload.module");
 const view_module_1 = require("./modules/view/view.module");
 const auth_module_1 = require("./modules/auth/auth.module");
 const audit_module_1 = require("./modules/audit/audit.module");
+const config_module_1 = require("./modules/config/config.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -29,6 +30,7 @@ exports.AppModule = AppModule = __decorate([
             audit_module_1.AuditModule,
             supplier_module_1.SupplierModule,
             upload_module_1.UploadModule,
+            config_module_1.ConfigModule,
             // ViewModule must be registered last as catch-all route
             view_module_1.ViewModule,
         ],

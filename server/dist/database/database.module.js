@@ -45,6 +45,8 @@ const config_1 = require("@nestjs/config");
 const mysql2_1 = require("drizzle-orm/mysql2");
 const mysql = __importStar(require("mysql2/promise"));
 const schema = __importStar(require("./schema"));
+const filterConfigSchema = __importStar(require("./filter-config.schema"));
+const allSchemas = { ...schema, ...filterConfigSchema };
 exports.DRIZZLE_DATABASE = 'DRIZZLE_DATABASE';
 let DatabaseModule = class DatabaseModule {
 };
@@ -64,7 +66,7 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                         password: config.get('DB_PASSWORD', ''),
                         database: config.get('DB_NAME', 'supplier_portal'),
                     });
-                    return (0, mysql2_1.drizzle)(connection, { schema, mode: 'default' });
+                    return (0, mysql2_1.drizzle)(connection, { schema: allSchemas, mode: 'default' });
                 },
             },
         ],
