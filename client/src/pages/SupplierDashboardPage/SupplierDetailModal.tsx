@@ -4,7 +4,7 @@ import {
   TagIcon, BanknoteIcon, FileTextIcon, UploadIcon, Trash2Icon,
   PencilIcon, PlusIcon, LinkIcon, ImageIcon, XIcon, CheckIcon,
   PhoneIcon, ShieldIcon, ArchiveRestoreIcon,
-  ChevronLeftIcon, ChevronRightIcon,
+  ChevronLeftIcon, ChevronRightIcon, Building2Icon,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
