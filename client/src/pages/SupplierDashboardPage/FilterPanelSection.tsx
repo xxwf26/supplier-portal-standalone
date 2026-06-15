@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
-import { Input } from '@/components/ui/input';
-import { SearchIcon } from 'lucide-react';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 
 export interface IFilterState {
@@ -15,7 +13,7 @@ export interface IFilterState {
   keyword: string;
 }
 
-const STORAGE_KEY = '__global_supplier_filter';
+export const STORAGE_KEY = '__global_supplier_filter';
 
 export default function FilterPanelSection({
   onFilterChange,
@@ -77,10 +75,6 @@ export default function FilterPanelSection({
     setFilters(prev => ({ ...prev, priceRange: [value[0], value[1]] as [number, number] }));
   };
 
-  const handleKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFilters(prev => ({ ...prev, keyword: e.target.value }));
-  };
-
   const clearFilters = () => {
     setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [500, 10000], status: [], projects: [], keyword: '' });
   };
@@ -110,16 +104,6 @@ export default function FilterPanelSection({
             清空筛选
           </button>
         )}
-      </div>
-
-      {/* 关键词搜索 */}
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-2 block">关键词搜索</label>
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input type="search" placeholder="搜索名称/备注..." value={filters.keyword}
-            onChange={handleKeywordChange} className="pl-9 h-9 text-sm bg-muted border-transparent focus:border-primary rounded-lg" />
-        </div>
       </div>
 
       {/* 供应商类型 */}

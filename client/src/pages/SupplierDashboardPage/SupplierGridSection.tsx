@@ -39,6 +39,7 @@ export interface IProcessedSupplier {
   cooperationCount: number;
   riskStatus: string;
   cooperationCategory: string | null;
+  updatedAt: string;
 }
 
 const typeConfig = {
@@ -114,30 +115,6 @@ const platformLabels: Record<string, string> = {
   bilibili: 'B站',
 };
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      type: 'spring',
-      stiffness: 300,
-      damping: 24,
-    },
-  },
-};
-
 const SupplierCard = React.memo(function SupplierCard({
   supplier,
   onSelect,
@@ -163,7 +140,6 @@ const SupplierCard = React.memo(function SupplierCard({
 
   return (
     <motion.div
-      variants={itemVariants}
       whileHover={{
         scale: 1.02,
         y: -4,
@@ -316,9 +292,9 @@ export default React.memo(function SupplierGridSection({
   return (
     <section className="w-full">
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
         className={
           viewMode === 'mobile'
             ? 'grid grid-cols-2 gap-3'

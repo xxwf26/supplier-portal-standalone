@@ -1,18 +1,33 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
-import FilterPanelSection, { IFilterState } from './FilterPanelSection';
+import FilterPanelSection, { IFilterState, STORAGE_KEY } from './FilterPanelSection';
 import SupplierGridSection, { IProcessedSupplier } from './SupplierGridSection';
 import SupplierDetailModal from './SupplierDetailModal';
 import { supplierApi } from '@/api/supplier';
 import { ISupplier } from '@/api/types';
 import { logger } from '@/lib/polyfills/logger';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import HistoryPanel from './HistoryPanel';
+
+type SortKey = 'default' | 'ratingDesc' | 'ratingAsc' | 'countDesc' | 'countAsc' | 'recent';
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'default', label: '默认排序' },
+  { value: 'ratingDesc', label: '评分从高到低' },
+  { value: 'ratingAsc', label: '评分从低到高' },
+  { value: 'countDesc', label: '合作频次从高到低' },
+  { value: 'countAsc', label: '合作频次从低到高' },
+  { value: 'recent', label: '最近更新' },
+];
 
 // Lazy-load heavy components
 const ExcelImportModal = lazy(() => import('./ExcelImportModal'));
@@ -126,6 +141,7 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
     cooperationCount: raw.cooperationCount,
     riskStatus: raw.riskStatus,
     cooperationCategory: raw.cooperationCategory,
+    updatedAt: raw.updatedAt,
   };
 }
 
@@ -142,6 +158,10 @@ export default function SupplierDashboardPage() {
   const [viewMode, setViewMode] = useState<'pc' | 'mobile'>(getInitialViewMode);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('default');
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [filterResetKey, setFilterResetKey] = useState(0);
 
   const { isAdmin } = useAuth();
 
@@ -161,7 +181,6 @@ export default function SupplierDashboardPage() {
       currentFilters.styles.length +
       currentFilters.status.length +
       currentFilters.projects.length +
-      (currentFilters.keyword !== '' ? 1 : 0) +
       (currentFilters.priceRange[0] !== 500 || currentFilters.priceRange[1] !== 10000 ? 1 : 0)
     );
   }, [currentFilters]);
@@ -193,14 +212,6 @@ export default function SupplierDashboardPage() {
     if (currentFilters.projects.length > 0) {
       result = result.filter((s) => s.project.some((p) => currentFilters.projects.includes(p)));
     }
-    if (currentFilters.keyword) {
-      const keyword = currentFilters.keyword.toLowerCase();
-      result = result.filter(
-        (s) =>
-          s.name.toLowerCase().includes(keyword) ||
-          (s.notes && s.notes.toLowerCase().includes(keyword))
-      );
-    }
 
     result = result.filter(
       (s) =>
@@ -211,6 +222,47 @@ export default function SupplierDashboardPage() {
 
     return result;
   }, [processedSuppliers, currentFilters]);
+
+  // 关键词搜索（来自吸顶工具条）+ 排序，得到最终展示列表
+  const displaySuppliers = useMemo(() => {
+    let result = filteredSuppliers;
+
+    const kw = keyword.trim().toLowerCase();
+    if (kw) {
+      result = result.filter(
+        (s) =>
+          s.name.toLowerCase().includes(kw) ||
+          (s.notes && s.notes.toLowerCase().includes(kw))
+      );
+    }
+
+    if (sortKey !== 'default') {
+      const sorted = [...result];
+      switch (sortKey) {
+        case 'ratingDesc':
+          sorted.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+          break;
+        case 'ratingAsc':
+          // 无评分排最后
+          sorted.sort((a, b) => (a.rating ?? Infinity) - (b.rating ?? Infinity));
+          break;
+        case 'countDesc':
+          sorted.sort((a, b) => b.cooperationCount - a.cooperationCount);
+          break;
+        case 'countAsc':
+          sorted.sort((a, b) => a.cooperationCount - b.cooperationCount);
+          break;
+        case 'recent':
+          sorted.sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+          break;
+      }
+      result = sorted;
+    }
+
+    return result;
+  }, [filteredSuppliers, keyword, sortKey]);
 
   const fetchSuppliers = useCallback(async () => {
     setLoading(true);
@@ -260,65 +312,39 @@ export default function SupplierDashboardPage() {
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    const allIds = filteredSuppliers.map((s) => s.id);
+    const allIds = displaySuppliers.map((s) => s.id);
     setSelectedIds(new Set(allIds));
-  }, [filteredSuppliers]);
+  }, [displaySuppliers]);
 
   const handleClearSelection = useCallback(() => {
     setSelectedIds(new Set());
   }, []);
 
   const selectedSuppliers = useMemo(() => {
-    return filteredSuppliers.filter((s) => selectedIds.has(s.id));
-  }, [filteredSuppliers, selectedIds]);
+    return displaySuppliers.filter((s) => selectedIds.has(s.id));
+  }, [displaySuppliers, selectedIds]);
 
-  const handleExportExcel = useCallback(async () => {
-    if (selectedSuppliers.length === 0) return;
-    const XLSX = await import('xlsx');
+  const [isExporting, setIsExporting] = useState(false);
 
-    const platformLabelMap: Record<string, string> = {
-      weibo: '微博', pixiv: 'Pixiv', xiaohongshu: '小红书',
-      website: '官网', bilibili: 'B站', mihuashi: '米画师', x: 'X',
-    };
-    const statusLabelMap: Record<string, string> = {
-      in_stock: '库内合作', outreach: '库外建联', blacklisted: '已拉黑',
-    };
-
-    const rows = selectedSuppliers.map((s) => {
-      const links = Object.entries(s.links || {})
-        .map(([k, v]) => `${platformLabelMap[k] || k}: ${v}`)
-        .join('; ');
-      const priceText = s.priceItems && s.priceItems.length > 0
-        ? s.priceItems.map((p) => `${p.cooperationType} ${p.unitPrice}${p.priceUnit}`).join(' | ')
-        : '';
-
-      return {
-        '画师名称': s.name,
-        '供应商类型': s.type === 'individual' ? '个人画师' : s.type === 'artist' ? '艺术家' : s.type === 'studio' ? '工作室' : '公司',
-        '合作状态': statusLabelMap[s.status] || s.status,
-        '擅长风格': s.styles.join('、'),
-        '合作类型': s.cooperationTypes.join('、'),
-        '合作品类': s.cooperationCategory || '',
-        '报价参考': priceText,
-        '评分': s.rating != null ? `${s.rating}分` : '',
-        '合作频次': s.cooperationCount,
-        '平台链接': links,
-        '备注': s.notes || '',
-      };
-    });
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const colWidths = [
-      { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 20 },
-      { wch: 14 }, { wch: 10 }, { wch: 30 }, { wch: 6 },
-      { wch: 8 }, { wch: 40 }, { wch: 30 },
-    ];
-    ws['!cols'] = colWidths;
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '画师名单');
-    XLSX.writeFile(wb, `画师名单_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.xlsx`);
-    toast.success(`已导出 ${selectedSuppliers.length} 位画师`);
-  }, [selectedSuppliers]);
+  const handleExportPdf = useCallback(async () => {
+    if (selectedSuppliers.length === 0 || isExporting) return;
+    setIsExporting(true);
+    const toastId = toast.loading(`正在生成 PDF（0/${selectedSuppliers.length}）…`);
+    try {
+      const { exportSuppliersToPdf } = await import('./exportSupplierPdf');
+      await exportSuppliersToPdf(selectedSuppliers, {
+        onProgress: (current, total) => {
+          toast.loading(`正在生成 PDF（${current}/${total}）…`, { id: toastId });
+        },
+      });
+      toast.success(`已导出 ${selectedSuppliers.length} 位画师档案`, { id: toastId });
+    } catch (err) {
+      logger.error('PDF export failed:', String(err));
+      toast.error('导出失败，请重试', { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [selectedSuppliers, isExporting]);
 
   const handleCopyToClipboard = useCallback(async () => {
     if (selectedSuppliers.length === 0) return;
@@ -356,6 +382,72 @@ export default function SupplierDashboardPage() {
     fetchSuppliers();
   }, [fetchSuppliers]);
 
+  // 滚动超过一屏时显示「回到顶部」按钮
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > window.innerHeight * 0.6);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setKeyword('');
+    setSortKey('default');
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    // 触发 FilterPanelSection 重新挂载以清空其内部筛选状态
+    setFilterResetKey((k) => k + 1);
+  }, []);
+
+  const hasAnyCondition = keyword.trim() !== '' || activeFilterCount > 0;
+
+  // 关键词搜索框 + 排序下拉（吸顶工具条内复用）
+  const searchAndSort = (
+    <>
+      <div className="relative flex-1 min-w-[160px] max-w-xs">
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="搜索名称 / 备注…"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          className="pl-9 h-9 text-sm"
+        />
+      </div>
+      <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+        <SelectTrigger className="h-9 w-[150px] text-sm gap-1">
+          <ArrowUpDownIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {SORT_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
+  );
+
+  // 空状态（筛选/搜索后无结果）
+  const emptyState = (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <SearchXIcon className="w-14 h-14 text-muted-foreground/30 mb-4" />
+      <p className="text-sm font-medium text-foreground mb-1">没有符合条件的画师</p>
+      <p className="text-xs text-muted-foreground mb-4">
+        {hasAnyCondition ? '试试调整或清空筛选条件' : '当前暂无数据'}
+      </p>
+      {hasAnyCondition && (
+        <Button variant="outline" size="sm" onClick={clearAllFilters}>
+          <XIcon className="w-3.5 h-3.5 mr-1" />
+          清空筛选
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <HeaderSection viewMode={viewMode} onToggleViewMode={toggleViewMode} />
@@ -363,38 +455,44 @@ export default function SupplierDashboardPage() {
       {/* PC 模式：侧边栏 + 主内容 */}
       {viewMode === 'pc' ? (
         <div className="flex">
-          <FilterPanelSection onFilterChange={handleFilterChange} />
+          <FilterPanelSection key={filterResetKey} onFilterChange={handleFilterChange} />
           <main className="flex-1 p-4 md:p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                共 <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> 个供应商
-              </p>
-              <div className="flex items-center gap-2">
-                {isAdmin && (
-                  <>
-                    <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setIsHistoryOpen(true)}>
-                      <HistoryIcon className="w-3.5 h-3.5" />
-                      历史
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsImportOpen(true)}>
-                      <UploadIcon className="w-3.5 h-3.5" />
-                      导入 Excel
-                    </Button>
-                    <Button size="sm" className="gap-1.5" onClick={() => setIsNewOpen(true)}>
-                      <PlusIcon className="w-3.5 h-3.5" />
-                      新建供应商
-                    </Button>
-                  </>
-                )}
+            {/* 吸顶工具条：搜索 + 排序 + 计数 + 操作 */}
+            <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-3 mb-4 bg-background/95 backdrop-blur border-b border-border">
+              <div className="flex items-center gap-2 flex-wrap">
+                {searchAndSort}
+                <p className="text-sm text-muted-foreground whitespace-nowrap ml-1">
+                  共 <span className="font-semibold text-foreground">{displaySuppliers.length}</span> 个
+                </p>
+                <div className="flex items-center gap-2 ml-auto">
+                  {isAdmin && (
+                    <>
+                      <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setIsHistoryOpen(true)}>
+                        <HistoryIcon className="w-3.5 h-3.5" />
+                        历史
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsImportOpen(true)}>
+                        <UploadIcon className="w-3.5 h-3.5" />
+                        导入 Excel
+                      </Button>
+                      <Button size="sm" className="gap-1.5" onClick={() => setIsNewOpen(true)}>
+                        <PlusIcon className="w-3.5 h-3.5" />
+                        新建供应商
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
+            ) : displaySuppliers.length === 0 ? (
+              emptyState
             ) : (
               <SupplierGridSection
-                suppliers={filteredSuppliers}
+                suppliers={displaySuppliers}
                 onSelect={handleSupplierSelect}
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
@@ -407,36 +505,44 @@ export default function SupplierDashboardPage() {
         /* 手机模式：全宽竖向滚动 */
         <>
           <main className="w-full p-3 pb-24">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                共 <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> 个供应商
-              </p>
-              <div className="flex items-center gap-1.5">
-                {isAdmin && (
-                  <>
-                    <Button variant="ghost" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsHistoryOpen(true)}>
-                      <HistoryIcon className="w-3 h-3" />
-                      历史
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsImportOpen(true)}>
-                      <UploadIcon className="w-3 h-3" />
-                      导入
-                    </Button>
-                    <Button size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsNewOpen(true)}>
-                      <PlusIcon className="w-3 h-3" />
-                      新建
-                    </Button>
-                  </>
-                )}
+            {/* 吸顶工具条 */}
+            <div className="sticky top-0 z-30 -mx-3 px-3 py-2 mb-3 bg-background/95 backdrop-blur border-b border-border space-y-2">
+              <div className="flex items-center gap-2">
+                {searchAndSort}
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  共 <span className="font-semibold text-foreground">{displaySuppliers.length}</span> 个
+                </p>
+                <div className="flex items-center gap-1.5">
+                  {isAdmin && (
+                    <>
+                      <Button variant="ghost" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsHistoryOpen(true)}>
+                        <HistoryIcon className="w-3 h-3" />
+                        历史
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsImportOpen(true)}>
+                        <UploadIcon className="w-3 h-3" />
+                        导入
+                      </Button>
+                      <Button size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsNewOpen(true)}>
+                        <PlusIcon className="w-3 h-3" />
+                        新建
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
+            ) : displaySuppliers.length === 0 ? (
+              emptyState
             ) : (
               <SupplierGridSection
-                suppliers={filteredSuppliers}
+                suppliers={displaySuppliers}
                 onSelect={handleSupplierSelect}
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
@@ -554,10 +660,11 @@ export default function SupplierDashboardPage() {
               <Button
                 size="sm"
                 className="gap-1.5 text-xs"
-                onClick={handleExportExcel}
+                onClick={handleExportPdf}
+                disabled={isExporting}
               >
                 <DownloadIcon className="w-3.5 h-3.5" />
-                导出 Excel
+                {isExporting ? '导出中…' : '导出 PDF'}
               </Button>
               <Button
                 variant="outline"
@@ -572,6 +679,23 @@ export default function SupplierDashboardPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* 回到顶部 */}
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.15 }}
+            onClick={scrollToTop}
+            title="回到顶部"
+            className="fixed bottom-6 right-6 z-40 w-11 h-11 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-muted active:scale-95 transition-colors"
+          >
+            <ArrowUpToLineIcon className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       <HistoryPanel open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onDataChange={fetchSuppliers} />
     </div>
   );

@@ -1,6 +1,10 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { UploadIcon, FileSpreadsheetIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon } from 'lucide-react';
+import { UploadIcon, FileSpreadsheetIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -131,7 +135,11 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<IBatchResult | null>(null);
   const [fileName, setFileName] = useState('');
+  const [previewPage, setPreviewPage] = useState(1);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const PREVIEW_PAGE_SIZE = 20;
 
   const reset = () => {
     setPhase('upload');
@@ -140,6 +148,8 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
     setResult(null);
     setImporting(false);
     setFileName('');
+    setPreviewPage(1);
+    setConfirmOpen(false);
   };
 
   const handleClose = () => {
@@ -208,6 +218,7 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
 
       setRawData(jsonData);
       setColumnMaps(mappings);
+      setPreviewPage(1);
       setPhase('preview');
     } catch (err) {
       logger.error('Excel parse error:', String(err));
@@ -249,11 +260,13 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
       if (validItems.length === 0) {
         toast.error('没有有效数据可导入');
         setImporting(false);
+        setConfirmOpen(false);
         return;
       }
 
       const res = await supplierApi.batchCreate(validItems);
       setResult(res);
+      setConfirmOpen(false);
       setPhase('result');
 
       if (res.successCount > 0) {
@@ -265,12 +278,15 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
     } catch (err) {
       logger.error('Batch import failed:', String(err));
       toast.error('批量导入失败，请重试');
+      setConfirmOpen(false);
     } finally {
       setImporting(false);
     }
   };
 
-  const previewRows = rawData.slice(0, 20);
+  const totalPages = Math.max(1, Math.ceil(rawData.length / PREVIEW_PAGE_SIZE));
+  const pageStart = (previewPage - 1) * PREVIEW_PAGE_SIZE;
+  const previewRows = rawData.slice(pageStart, pageStart + PREVIEW_PAGE_SIZE);
   const mappedFields = columnMaps.map((m) => m.field);
 
   return (
@@ -347,7 +363,7 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
 
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">
-                    数据预览（前 {Math.min(20, rawData.length)} 条）：
+                    数据预览（全部 {rawData.length} 条，第 {pageStart + 1}-{Math.min(pageStart + PREVIEW_PAGE_SIZE, rawData.length)} 条）：
                   </p>
                   <div className="border border-border rounded-lg overflow-x-auto">
                     <table className="w-full text-xs">
@@ -367,8 +383,8 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
                         {previewRows.map((row, i) => {
                           const mapped = mapRow(row, columnMaps);
                           return (
-                            <tr key={i} className="border-t border-border/50">
-                              <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
+                            <tr key={pageStart + i} className="border-t border-border/50">
+                              <td className="px-3 py-1.5 text-muted-foreground">{pageStart + i + 1}</td>
                               {mappedFields.map((field) => {
                                 let value = mapped[field];
                                 if (field === 'socialLinks' && typeof value === 'object' && value) {
@@ -386,6 +402,34 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
                       </tbody>
                     </table>
                   </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 gap-1 text-xs"
+                        disabled={previewPage <= 1}
+                        onClick={() => setPreviewPage((p) => Math.max(1, p - 1))}
+                      >
+                        <ChevronLeftIcon className="w-3.5 h-3.5" />
+                        上一页
+                      </Button>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        第 {previewPage} / {totalPages} 页
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 gap-1 text-xs"
+                        disabled={previewPage >= totalPages}
+                        onClick={() => setPreviewPage((p) => Math.min(totalPages, p + 1))}
+                      >
+                        下一页
+                        <ChevronRightIcon className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -428,11 +472,32 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
             <Button variant="outline" onClick={() => { setPhase('upload'); setRawData([]); setColumnMaps([]); }}>
               取消
             </Button>
-            <Button onClick={handleImport} disabled={importing}>
+            <Button onClick={() => setConfirmOpen(true)} disabled={importing}>
               {importing ? '导入中...' : `确认导入 ${rawData.length} 条`}
             </Button>
           </div>
         )}
+
+        <AlertDialog open={confirmOpen} onOpenChange={(v) => { if (!importing) setConfirmOpen(v); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认导入数据？</AlertDialogTitle>
+              <AlertDialogDescription>
+                即将向数据库导入 {rawData.length} 条供应商数据，已识别 {columnMaps.length} 个字段。
+                导入后数据会立即写入，请确认无误后继续。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={importing}>取消</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={importing}
+                onClick={(e) => { e.preventDefault(); handleImport(); }}
+              >
+                {importing ? '导入中...' : '确定导入'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {phase === 'result' && (
           <div className="px-6 py-4 border-t border-border flex justify-end shrink-0">
