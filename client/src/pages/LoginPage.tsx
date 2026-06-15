@@ -103,7 +103,7 @@ export default function LoginPage() {
               <span className="text-sm text-[#465260]">记住我</span>
             </label>
             <span className="text-xs text-[#687382]">
-              {rememberMe ? '有效期 30 天' : '有效期 8 小时'}
+              有效期 30 天
             </span>
           </div>
 
