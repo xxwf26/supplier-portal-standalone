@@ -10,11 +10,13 @@ exports.SupplierModule = void 0;
 const common_1 = require("@nestjs/common");
 const supplier_controller_1 = require("./supplier.controller");
 const supplier_service_1 = require("./supplier.service");
+const audit_module_1 = require("../audit/audit.module");
 let SupplierModule = class SupplierModule {
 };
 exports.SupplierModule = SupplierModule;
 exports.SupplierModule = SupplierModule = __decorate([
     (0, common_1.Module)({
+        imports: [audit_module_1.AuditModule],
         controllers: [supplier_controller_1.SupplierController],
         providers: [supplier_service_1.SupplierService],
     })

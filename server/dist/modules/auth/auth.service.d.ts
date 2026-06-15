@@ -11,12 +11,13 @@ export declare class AuthService {
         id: number;
         username: string;
         role: string;
-    }): {
+    }, rememberMe?: boolean): {
         access_token: string;
         user: {
             username: string;
             role: string;
         };
+        expiresIn: string;
     };
 }
 //# sourceMappingURL=auth.service.d.ts.map

@@ -1,6 +1,26 @@
 import { mysqlTable, varchar, text, int, boolean, date, timestamp, json, index } from 'drizzle-orm/mysql-core';
 import { sql } from 'drizzle-orm';
 
+export const auditLog = mysqlTable(
+  'audit_log',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    operation: varchar('operation', { length: 50 }).notNull(), // INSERT | UPDATE | DELETE | BATCH_IMPORT | BATCH_ROLLBACK | SNAPSHOT
+    recordId: varchar('record_id', { length: 36 }),
+    batchId: varchar('batch_id', { length: 255 }),
+    tableName: varchar('table_name', { length: 100 }).default('suppliers'),
+    oldData: json('old_data'),
+    newData: json('new_data'),
+    operatedBy: varchar('operated_by', { length: 255 }),
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  },
+  (table) => ({
+    idxBatchId: index('idx_audit_batch_id').on(table.batchId),
+    idxRecordId: index('idx_audit_record_id').on(table.recordId),
+    idxCreatedAt: index('idx_audit_created_at').on(table.createdAt),
+  }),
+);
+
 export const suppliers = mysqlTable(
   'suppliers',
   {

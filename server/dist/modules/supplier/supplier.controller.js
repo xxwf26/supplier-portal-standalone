@@ -49,30 +49,30 @@ let SupplierController = class SupplierController {
         }
         return supplier;
     }
-    async batchCreate(data) {
+    async batchCreate(data, req) {
         if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
             throw new common_1.HttpException('导入数据不能为空', common_1.HttpStatus.BAD_REQUEST);
         }
         if (data.items.length > 500) {
             throw new common_1.HttpException('单次导入最多 500 条', common_1.HttpStatus.BAD_REQUEST);
         }
-        return this.supplierService.batchCreate(data.items);
+        return this.supplierService.batchCreate(data.items, req.user?.username);
     }
-    async create(data) {
+    async create(data, req) {
         if (!data.accountName) {
             throw new common_1.HttpException('账号名称不能为空', common_1.HttpStatus.BAD_REQUEST);
         }
-        return this.supplierService.create(data);
+        return this.supplierService.create(data, req.user?.username);
     }
-    async update(id, data) {
-        const supplier = await this.supplierService.update(id, data);
+    async update(id, data, req) {
+        const supplier = await this.supplierService.update(id, data, req.user?.username);
         if (!supplier) {
             throw new common_1.HttpException('供应商不存在', common_1.HttpStatus.NOT_FOUND);
         }
         return supplier;
     }
-    async delete(id) {
-        const success = await this.supplierService.delete(id);
+    async delete(id, req) {
+        const success = await this.supplierService.delete(id, req.user?.username);
         if (!success) {
             throw new common_1.HttpException('供应商不存在', common_1.HttpStatus.NOT_FOUND);
         }
@@ -110,8 +110,9 @@ __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('admin'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "batchCreate", null);
 __decorate([
@@ -119,8 +120,9 @@ __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('admin'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "create", null);
 __decorate([
@@ -129,8 +131,9 @@ __decorate([
     (0, roles_decorator_1.Roles)('admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "update", null);
 __decorate([
@@ -138,8 +141,9 @@ __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('admin'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "delete", null);
 exports.SupplierController = SupplierController = __decorate([

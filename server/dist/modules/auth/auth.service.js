@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
-// Hardcoded users for simplicity
 const USERS = [
     { id: 1, username: 'admin', password: 'admin123', role: 'admin' },
     { id: 2, username: 'viewer', password: 'viewer123', role: 'viewer' },
@@ -24,16 +23,15 @@ let AuthService = class AuthService {
     }
     validateUser(username, password) {
         const user = USERS.find(u => u.username === username && u.password === password);
-        if (user) {
-            return { id: user.id, username: user.username, role: user.role };
-        }
-        return null;
+        return user ? { id: user.id, username: user.username, role: user.role } : null;
     }
-    login(user) {
+    login(user, rememberMe = false) {
         const payload = { sub: user.id, username: user.username, role: user.role };
+        const expiresIn = rememberMe ? '30d' : '30d';
         return {
-            access_token: this.jwtService.sign(payload),
+            access_token: this.jwtService.sign(payload, { expiresIn }),
             user: { username: user.username, role: user.role },
+            expiresIn,
         };
     }
 };

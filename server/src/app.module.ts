@@ -6,8 +6,8 @@ import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import { SupplierModule } from './modules/supplier/supplier.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { ViewModule } from './modules/view/view.module';
-
 import { AuthModule } from './modules/auth/auth.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 import { ConfigModule as AppConfigModule } from './modules/config/config.module';
 
@@ -16,7 +16,7 @@ import { ConfigModule as AppConfigModule } from './modules/config/config.module'
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
     AuthModule,
-    AppConfigModule,
+    AuditModule,
     SupplierModule,
     UploadModule,
     // ViewModule must be registered last as catch-all route

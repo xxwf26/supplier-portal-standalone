@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
-import { UserPlusIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { UserPlusIcon, PlusIcon, Trash2Icon, ArchiveRestoreIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle as AlertTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -68,6 +73,16 @@ interface NewSupplierModalProps {
 
 const MAX_PRICE_ITEMS = 5;
 
+const DRAFT_KEY = '__draft_new_supplier';
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return '刚刚';
+  if (m < 60) return `${m} 分钟前`;
+  return `${Math.floor(m / 60)} 小时前`;
+}
+
 export default function NewSupplierModal({ open, onClose, onCreated }: NewSupplierModalProps) {
   const filterConfig = useFilterOptions();
 
@@ -92,6 +107,8 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   });
 
   const [saving, setSaving] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
 
   const [accountName, setAccountName] = useState('');
   const [supplierType, setSupplierType] = useState('');
@@ -104,6 +121,60 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
   const [contactItemEntries, setContactItemEntries] = useState<ContactItemEntry[]>([]);
 
+  const isDirty = accountName.trim() !== '' || supplierType !== '' || cooperationCategory !== '' ||
+    cooperationType !== '' || contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
+    priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0;
+
+  // 草稿自动保存
+  useEffect(() => {
+    if (!open || !isDirty) return;
+    const draft = {
+      accountName, supplierType, cooperationCategory, cooperationType,
+      contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
+      contactItemEntries, savedAt: new Date().toISOString(),
+    };
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+  }, [open, isDirty, accountName, supplierType, cooperationCategory, cooperationType,
+    contactInfo, entityType, styleTags, linkEntries, priceItemEntries, contactItemEntries]);
+
+  // 打开时检测草稿
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.savedAt && !isDirty) setDraftSavedAt(d.savedAt);
+      }
+    } catch {}
+  }, [open]);
+
+  const restoreDraft = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (!saved) return;
+      const d = JSON.parse(saved);
+      setAccountName(d.accountName ?? '');
+      setSupplierType(d.supplierType ?? '');
+      setCooperationCategory(d.cooperationCategory ?? '');
+      setCooperationType(d.cooperationType ?? '');
+      setContactInfo(d.contactInfo ?? '');
+      setEntityType(d.entityType ?? '');
+      setStyleTags(d.styleTags ?? []);
+      setLinkEntries(d.linkEntries ?? []);
+      setPriceItemEntries(d.priceItemEntries ?? []);
+      setContactItemEntries(d.contactItemEntries ?? []);
+    } catch {}
+    setDraftSavedAt(null);
+  }, []);
+
+  const discardDraft = useCallback(() => {
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftSavedAt(null);
+  }, []);
+
+  const clearDraft = useCallback(() => { localStorage.removeItem(DRAFT_KEY); }, []);
+
   const resetForm = () => {
     setAccountName('');
     setSupplierType('');
@@ -115,11 +186,18 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
     setLinkEntries([]);
     setPriceItemEntries([]);
     setContactItemEntries([]);
+    setDraftSavedAt(null);
   };
 
   const handleClose = () => {
+    clearDraft();
     resetForm();
     onClose();
+  };
+
+  const handleWantsToClose = () => {
+    if (isDirty) { setShowConfirm(true); return; }
+    handleClose();
   };
 
   const addStyleTag = (tag: string) => {
@@ -223,6 +301,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
       });
 
       toast.success(`供应商「${accountName}」创建成功`);
+      clearDraft();
       resetForm();
       onCreated();
     } catch (err) {
@@ -236,14 +315,29 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   const availablePresets = stylePresets.filter((p) => !styleTags.includes(p));
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl w-full max-h-[85vh] p-0 overflow-hidden flex flex-col">
+    <>
+    <Dialog open={open} onOpenChange={(v) => !v && handleWantsToClose()}>
+      <DialogContent
+        className="max-w-2xl w-full max-h-[85vh] p-0 overflow-hidden flex flex-col"
+        onPointerDownOutside={(e) => isDirty && e.preventDefault()}
+        onEscapeKeyDown={(e) => isDirty && e.preventDefault()}
+      >
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
             <UserPlusIcon className="w-5 h-5 text-primary" />
             新建供应商
           </DialogTitle>
         </DialogHeader>
+
+        {/* 草稿恢复横幅 */}
+        {draftSavedAt && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 text-sm shrink-0">
+            <ArchiveRestoreIcon className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="flex-1 text-amber-800">发现未保存的草稿（{timeAgo(draftSavedAt)}）</span>
+            <Button size="sm" variant="outline" className="h-6 text-xs border-amber-300 text-amber-700 hover:bg-amber-100" onClick={restoreDraft}>恢复草稿</Button>
+            <Button size="sm" variant="ghost" className="h-6 text-xs text-amber-600" onClick={discardDraft}>忽略</Button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
             <div className="grid grid-cols-2 gap-4">
@@ -503,20 +597,45 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">备注</label>
               <Textarea
                 value={contactInfo}
-                onChange={(e) => setContactInfo(e.target.value)}
+                onChange={(e) => setContactInfo(e.target.value.slice(0, 500))}
                 placeholder="特殊要求等"
-                className="min-h-[80px] text-sm"
+                className="min-h-[100px] text-sm resize-none"
               />
+              <div className="flex justify-end mt-1">
+                <span className={`text-[11px] tabular-nums ${contactInfo.length >= 500 ? 'text-destructive font-medium' : contactInfo.length >= 400 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                  {contactInfo.length} / 500
+                </span>
+              </div>
             </div>
           </div>
 
         <div className="px-6 py-4 border-t border-border flex justify-end gap-2 shrink-0">
-          <Button variant="outline" onClick={handleClose}>取消</Button>
+          <Button variant="outline" onClick={handleWantsToClose}>取消</Button>
           <Button onClick={handleSubmit} disabled={saving || !accountName.trim()}>
             {saving ? '创建中...' : '创建供应商'}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* 放弃编辑确认 */}
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertTitle>放弃填写？</AlertTitle>
+          <AlertDialogDescription>已填写的内容将不会保存。</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>继续填写</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive hover:bg-destructive/90"
+            onClick={handleClose}
+          >
+            放弃
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

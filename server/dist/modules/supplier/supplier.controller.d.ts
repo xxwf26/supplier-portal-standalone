@@ -15,10 +15,10 @@ export declare class SupplierController {
     findById(id: string): Promise<import("./supplier.types").ISupplier>;
     batchCreate(data: {
         items: ICreateSupplierDto[];
-    }): Promise<IBatchCreateResponse>;
-    create(data: ICreateSupplierDto): Promise<import("./supplier.types").ISupplier>;
-    update(id: string, data: IUpdateSupplierDto): Promise<import("./supplier.types").ISupplier>;
-    delete(id: string): Promise<{
+    }, req: any): Promise<IBatchCreateResponse>;
+    create(data: ICreateSupplierDto, req: any): Promise<import("./supplier.types").ISupplier>;
+    update(id: string, data: IUpdateSupplierDto, req: any): Promise<import("./supplier.types").ISupplier>;
+    delete(id: string, req: any): Promise<{
         success: boolean;
     }>;
 }

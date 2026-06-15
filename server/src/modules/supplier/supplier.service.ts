@@ -1,8 +1,17 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
+
+function parseJson<T>(value: unknown, fallback: T): T {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') {
+    try { return JSON.parse(value); } catch { return fallback; }
+  }
+  return value as T;
+}
 import { eq, and, or, like, inArray, SQL, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
 import { suppliers } from '../../database/schema';
 import { ISupplier, ICreateSupplierDto, IUpdateSupplierDto, ISupplierFilter, ISupplierListResponse, IBatchCreateResponse } from './supplier.types';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class SupplierService {
@@ -10,6 +19,7 @@ export class SupplierService {
 
   constructor(
     @Inject(DRIZZLE_DATABASE) private readonly db: Database,
+    private readonly auditService: AuditService,
   ) {}
 
   async findAll(filter?: ISupplierFilter): Promise<ISupplierListResponse> {
@@ -64,7 +74,7 @@ export class SupplierService {
     return result.length > 0 ? this.mapToISupplier(result[0]) : null;
   }
 
-  async create(data: ICreateSupplierDto): Promise<ISupplier> {
+  async create(data: ICreateSupplierDto, operatedBy = 'admin'): Promise<ISupplier> {
     await this.db.insert(suppliers).values({
       accountName: data.accountName,
       socialLinks: data.socialLinks || {},
@@ -89,12 +99,20 @@ export class SupplierService {
       importSource: 'manual',
     });
 
-    // Get the inserted record (last insert)
     const all = await this.db.select().from(suppliers).orderBy(sql`${suppliers.createdAt} DESC`).limit(1);
-    return this.mapToISupplier(all[0]);
+    const created = this.mapToISupplier(all[0]);
+
+    await this.auditService.log({
+      operation: 'INSERT',
+      recordId: created.id,
+      newData: created,
+      operatedBy,
+    });
+
+    return created;
   }
 
-  async update(id: string, data: IUpdateSupplierDto): Promise<ISupplier | null> {
+  async update(id: string, data: IUpdateSupplierDto, operatedBy = 'admin'): Promise<ISupplier | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
 
@@ -128,16 +146,39 @@ export class SupplierService {
     if (data.artworkUrls !== undefined) updateData.artworkUrls = data.artworkUrls;
 
     await this.db.update(suppliers).set(updateData).where(eq(suppliers.id, id));
+    const updated = await this.findById(id);
 
-    return this.findById(id);
+    await this.auditService.log({
+      operation: 'UPDATE',
+      recordId: id,
+      oldData: existing,
+      newData: updated,
+      operatedBy,
+    });
+
+    return updated;
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, operatedBy = 'admin'): Promise<boolean> {
+    const existing = await this.findById(id);
     await this.db.delete(suppliers).where(eq(suppliers.id, id));
+    await this.auditService.log({
+      operation: 'DELETE',
+      recordId: id,
+      oldData: existing,
+      operatedBy,
+    });
     return true;
   }
 
-  async batchCreate(items: ICreateSupplierDto[]): Promise<IBatchCreateResponse> {
+  async batchCreate(items: ICreateSupplierDto[], operatedBy = 'admin'): Promise<IBatchCreateResponse> {
+    // 批量导入前先创建快照
+    try {
+      await this.auditService.createSnapshot('pre_import');
+    } catch (err) {
+      this.logger.warn('Pre-import snapshot failed (non-blocking):', err);
+    }
+
     let successCount = 0;
     let failCount = 0;
     const errors: { row: number; name: string; reason: string }[] = [];
@@ -145,7 +186,7 @@ export class SupplierService {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       try {
-        await this.create(item);
+        await this.create(item, operatedBy);
         successCount++;
       } catch (err) {
         failCount++;
@@ -195,11 +236,11 @@ export class SupplierService {
     return {
       id: dbRecord.id,
       accountName: dbRecord.accountName,
-      socialLinks: (dbRecord.socialLinks || {}) as Record<string, string>,
+      socialLinks: parseJson(dbRecord.socialLinks, {}),
       subCategory: dbRecord.subCategory,
       cooperationType: dbRecord.cooperationType,
       priceRange: dbRecord.priceRange,
-      priceItems: (dbRecord.priceItems || []) as { cooperationType: string; unitPrice: number; priceUnit: string }[],
+      priceItems: parseJson(dbRecord.priceItems, []),
       cooperationCount: dbRecord.cooperationCount || 0,
       rating: dbRecord.rating,
       riskStatus: dbRecord.riskStatus || '暂无',
@@ -211,11 +252,11 @@ export class SupplierService {
       contractDeadline: dbRecord.contractDeadline,
       taxStatus: dbRecord.taxStatus,
       contactInfo: dbRecord.contactInfo,
-      contactItems: (dbRecord.contactItems || []) as { type: string; value: string }[],
+      contactItems: parseJson(dbRecord.contactItems, []),
       cooperationCategory: dbRecord.cooperationCategory,
       supplierType: dbRecord.supplierType,
-      artworkUrls: (dbRecord.artworkUrls || []) as string[],
-      manualLinks: (dbRecord.manualLinks || {}) as Record<string, string>,
+      artworkUrls: parseJson(dbRecord.artworkUrls, []),
+      manualLinks: parseJson(dbRecord.manualLinks, {}),
       importSource: dbRecord.importSource || 'manual',
       importBatchId: dbRecord.importBatchId,
       createdAt: dbRecord.createdAt instanceof Date ? dbRecord.createdAt.toISOString() : String(dbRecord.createdAt),

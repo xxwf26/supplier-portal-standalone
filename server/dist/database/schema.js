@@ -1,8 +1,23 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.suppliersTable = exports.suppliers = void 0;
+exports.suppliersTable = exports.suppliers = exports.auditLog = void 0;
 const mysql_core_1 = require("drizzle-orm/mysql-core");
 const drizzle_orm_1 = require("drizzle-orm");
+exports.auditLog = (0, mysql_core_1.mysqlTable)('audit_log', {
+    id: (0, mysql_core_1.int)('id').autoincrement().primaryKey(),
+    operation: (0, mysql_core_1.varchar)('operation', { length: 50 }).notNull(), // INSERT | UPDATE | DELETE | BATCH_IMPORT | BATCH_ROLLBACK | SNAPSHOT
+    recordId: (0, mysql_core_1.varchar)('record_id', { length: 36 }),
+    batchId: (0, mysql_core_1.varchar)('batch_id', { length: 255 }),
+    tableName: (0, mysql_core_1.varchar)('table_name', { length: 100 }).default('suppliers'),
+    oldData: (0, mysql_core_1.json)('old_data'),
+    newData: (0, mysql_core_1.json)('new_data'),
+    operatedBy: (0, mysql_core_1.varchar)('operated_by', { length: 255 }),
+    createdAt: (0, mysql_core_1.timestamp)('created_at').default((0, drizzle_orm_1.sql) `CURRENT_TIMESTAMP`).notNull(),
+}, (table) => ({
+    idxBatchId: (0, mysql_core_1.index)('idx_audit_batch_id').on(table.batchId),
+    idxRecordId: (0, mysql_core_1.index)('idx_audit_record_id').on(table.recordId),
+    idxCreatedAt: (0, mysql_core_1.index)('idx_audit_created_at').on(table.createdAt),
+}));
 exports.suppliers = (0, mysql_core_1.mysqlTable)('suppliers', {
     id: (0, mysql_core_1.varchar)('id', { length: 36 })
         .notNull()

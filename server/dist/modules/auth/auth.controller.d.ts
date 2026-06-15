@@ -5,12 +5,14 @@ export declare class AuthController {
     login(body: {
         username: string;
         password: string;
+        rememberMe?: boolean;
     }): {
         access_token: string;
         user: {
             username: string;
             role: string;
         };
+        expiresIn: string;
     };
 }
 //# sourceMappingURL=auth.controller.d.ts.map

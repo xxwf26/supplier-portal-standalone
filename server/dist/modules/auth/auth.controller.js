@@ -24,7 +24,7 @@ let AuthController = class AuthController {
         const user = this.authService.validateUser(body.username, body.password);
         if (!user)
             throw new common_1.UnauthorizedException('用户名或密码错误');
-        return this.authService.login(user);
+        return this.authService.login(user, body.rememberMe ?? false);
     }
 };
 exports.AuthController = AuthController;

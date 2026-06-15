@@ -1,11 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ExternalLinkIcon, MessageCircleIcon, StarIcon,
   TagIcon, BanknoteIcon, FileTextIcon, UploadIcon, Trash2Icon,
   PencilIcon, PlusIcon, LinkIcon, ImageIcon, XIcon, CheckIcon,
-  PhoneIcon, ShieldIcon, Building2Icon,
+  PhoneIcon, ShieldIcon, ArchiveRestoreIcon,
+  ChevronLeftIcon, ChevronRightIcon,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle as AlertTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,6 +113,98 @@ interface SupplierDetailModalProps {
 
 const MAX_PRICE_ITEMS = 5;
 
+// ── 全屏灯箱 ────────────────────────────────────────────
+function LightboxOverlay({
+  urls,
+  startIndex,
+  onClose,
+}: {
+  urls: string[];
+  startIndex: number;
+  onClose: () => void;
+}) {
+  const [current, setCurrent] = React.useState(startIndex);
+  const total = urls.length;
+
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') setCurrent(i => Math.max(0, i - 1));
+      if (e.key === 'ArrowRight') setCurrent(i => Math.min(total - 1, i + 1));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, total]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] bg-black/92 flex items-center justify-center"
+      onClick={onClose}
+    >
+      {/* 关闭 */}
+      <button
+        className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+        onClick={onClose}
+      >
+        <XIcon className="w-5 h-5" />
+      </button>
+
+      {/* 计数 */}
+      {total > 1 && (
+        <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm tabular-nums">
+          {current + 1} / {total}
+        </span>
+      )}
+
+      {/* 图片 */}
+      <div className="relative max-w-[92vw] max-h-[88vh]" onClick={e => e.stopPropagation()}>
+        <img
+          key={current}
+          src={urls[current]}
+          alt={`作品 ${current + 1}`}
+          className="max-w-[92vw] max-h-[88vh] object-contain rounded-lg shadow-2xl"
+        />
+      </div>
+
+      {/* 左右导航 */}
+      {current > 0 && (
+        <button
+          className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+          onClick={e => { e.stopPropagation(); setCurrent(i => i - 1); }}
+        >
+          <ChevronLeftIcon className="w-6 h-6" />
+        </button>
+      )}
+      {current < total - 1 && (
+        <button
+          className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+          onClick={e => { e.stopPropagation(); setCurrent(i => i + 1); }}
+        >
+          <ChevronRightIcon className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* 缩略图导航栏（多图时） */}
+      {total > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 bg-black/40 rounded-full">
+          {urls.map((url, i) => (
+            <button
+              key={i}
+              onClick={e => { e.stopPropagation(); setCurrent(i); }}
+              className={cn(
+                'w-10 h-7 rounded overflow-hidden border-2 transition-all',
+                i === current ? 'border-white scale-110' : 'border-white/30 opacity-60 hover:opacity-90'
+              )}
+            >
+              <img src={url} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getStatusFromData(supplier: ISupplier): 'in_stock' | 'outreach' | 'blacklisted' {
   if (supplier.riskStatus === '拉黑') return 'blacklisted';
   if (supplier.isInStock) return 'in_stock';
@@ -144,7 +242,10 @@ export default function SupplierDetailModal({
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [artworkUrls, setArtworkUrls] = useState<string[]>([]);
   const [manualLinkEntries, setManualLinkEntries] = useState<ManualLinkEntry[]>([]);
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
@@ -162,6 +263,78 @@ export default function SupplierDetailModal({
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
+
+  const draftKey = supplier ? `__draft_edit_${supplier.id}` : null;
+
+  const saveDraft = useCallback(() => {
+    if (!draftKey || !isEditing) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
+        cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
+        styleTags, contactInfoText, supplierTypeVal,
+        savedAt: new Date().toISOString(),
+      }));
+    } catch {}
+  }, [draftKey, isEditing, artworkUrls, manualLinkEntries, priceItemEntries,
+    contactItemEntries, cooperationTypeVal, cooperationCountVal, ratingVal,
+    statusVal, styleTags, contactInfoText, supplierTypeVal]);
+
+  const clearDraft = useCallback(() => {
+    if (draftKey) localStorage.removeItem(draftKey);
+    setDraftSavedAt(null);
+  }, [draftKey]);
+
+  const restoreDraft = useCallback(() => {
+    if (!draftKey) return;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (!saved) return;
+      const d = JSON.parse(saved);
+      if (d.artworkUrls) setArtworkUrls(d.artworkUrls);
+      if (d.manualLinkEntries) setManualLinkEntries(d.manualLinkEntries);
+      if (d.priceItemEntries) setPriceItemEntries(d.priceItemEntries);
+      if (d.contactItemEntries) setContactItemEntries(d.contactItemEntries);
+      if (d.cooperationTypeVal !== undefined) setCooperationTypeVal(d.cooperationTypeVal);
+      if (d.cooperationCountVal !== undefined) setCooperationCountVal(d.cooperationCountVal);
+      if (d.ratingVal !== undefined) setRatingVal(d.ratingVal);
+      if (d.statusVal !== undefined) setStatusVal(d.statusVal);
+      if (d.styleTags) setStyleTags(d.styleTags);
+      if (d.contactInfoText !== undefined) setContactInfoText(d.contactInfoText);
+      if (d.supplierTypeVal !== undefined) setSupplierTypeVal(d.supplierTypeVal);
+    } catch {}
+    setDraftSavedAt(null);
+  }, [draftKey]);
+
+  // 草稿自动保存（编辑中）
+  useEffect(() => {
+    if (isEditing) saveDraft();
+  }, [isEditing, saveDraft]);
+
+  // 进入编辑时检查草稿
+  useEffect(() => {
+    if (!isEditing || !draftKey) { setDraftSavedAt(null); return; }
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.savedAt) setDraftSavedAt(d.savedAt);
+      }
+    } catch {}
+  }, [isEditing, draftKey]);
+
+  function timeAgo(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return '刚刚';
+    if (m < 60) return `${m} 分钟前`;
+    return `${Math.floor(m / 60)} 小时前`;
+  }
+
+  const handleWantsToClose = () => {
+    if (isEditing) { setShowConfirm(true); return; }
+    onClose();
+  };
 
   const resetForm = () => {
     if (!supplier) return;
@@ -357,6 +530,7 @@ export default function SupplierDetailModal({
         riskStatus: statusVal === 'blacklisted' ? '拉黑' : '暂无',
       });
       setIsEditing(false);
+      clearDraft();
       onSave();
     } catch (err) {
       logger.error('Save failed:', String(err));
@@ -369,6 +543,7 @@ export default function SupplierDetailModal({
     resetForm();
     setIsEditing(false);
     setConfirmingDelete(false);
+    clearDraft();
   };
 
   const handleDelete = async () => {
@@ -421,8 +596,14 @@ export default function SupplierDetailModal({
   const moduleBody = 'px-3 py-2.5';
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden" showCloseButton={false}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => !v && handleWantsToClose()}>
+      <DialogContent
+        className="max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden"
+        showCloseButton={false}
+        onPointerDownOutside={(e) => isEditing && e.preventDefault()}
+        onEscapeKeyDown={(e) => isEditing && e.preventDefault()}
+      >
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
           <div className="flex items-start justify-between gap-4">
@@ -471,6 +652,16 @@ export default function SupplierDetailModal({
             )}
           </div>
         </DialogHeader>
+
+        {/* 草稿恢复横幅（仅编辑模式下出现） */}
+        {isEditing && draftSavedAt && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 text-sm shrink-0">
+            <ArchiveRestoreIcon className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="flex-1 text-amber-800">发现上次未保存的草稿（{timeAgo(draftSavedAt)}）</span>
+            <button className="text-xs font-medium text-amber-700 underline underline-offset-2 mr-2" onClick={restoreDraft}>恢复草稿</button>
+            <button className="text-xs text-amber-500 hover:text-amber-700" onClick={() => { clearDraft(); }}>忽略</button>
+          </div>
+        )}
 
         <ScrollArea className="max-h-[calc(90vh-100px)]">
           <div className="px-4 py-4 space-y-3">
@@ -560,6 +751,9 @@ export default function SupplierDetailModal({
                 <div className="flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-primary" />
                   <span className="text-xs font-semibold">作品展示</span>
+                  {artworkUrls.length > 0 && (
+                    <span className="text-[10px] text-muted-foreground">({artworkUrls.length} 张)</span>
+                  )}
                 </div>
                 {isEditing && (
                   <span className="text-[10px] text-muted-foreground">支持粘贴上传</span>
@@ -572,9 +766,14 @@ export default function SupplierDetailModal({
                       <div className="grid grid-cols-3 gap-2">
                         {artworkUrls.map((url, index) => (
                           <div key={index} className="relative aspect-[4/3] rounded-lg overflow-hidden group border border-border">
-                            <img src={url} alt={`作品 ${index + 1}`} className="w-full h-full object-cover" />
+                            <img
+                              src={url}
+                              alt={`作品 ${index + 1}`}
+                              className="w-full h-full object-cover cursor-zoom-in"
+                              onClick={() => setLightboxIndex(index)}
+                            />
                             <button
-                              onClick={() => removeArtwork(index)}
+                              onClick={(e) => { e.stopPropagation(); removeArtwork(index); }}
                               className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <Trash2Icon className="w-3 h-3" />
@@ -602,10 +801,21 @@ export default function SupplierDetailModal({
                   </div>
                 ) : (
                   artworkUrls.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
                       {artworkUrls.map((url, index) => (
-                        <div key={index} className="aspect-[4/3] rounded-lg overflow-hidden bg-muted border border-border">
-                          <img src={url} alt={`作品 ${index + 1}`} className="w-full h-full object-cover" />
+                        <div
+                          key={index}
+                          className="flex-shrink-0 h-[200px] rounded-lg overflow-hidden bg-muted border border-border cursor-zoom-in hover:border-primary/50 transition-colors group relative"
+                          onClick={() => setLightboxIndex(index)}
+                        >
+                          <img
+                            src={url}
+                            alt={`作品 ${index + 1}`}
+                            className="h-full w-auto max-w-[360px] object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs bg-black/50 px-2 py-1 rounded-full">查看大图</span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -983,12 +1193,19 @@ export default function SupplierDetailModal({
               </div>
               <div className={moduleBody}>
                 {isEditing ? (
-                  <Textarea
-                    value={contactInfoText}
-                    onChange={(e) => setContactInfoText(e.target.value)}
-                    placeholder="特殊要求等"
-                    className="min-h-[80px] text-xs"
-                  />
+                  <div>
+                    <Textarea
+                      value={contactInfoText}
+                      onChange={(e) => setContactInfoText(e.target.value.slice(0, 500))}
+                      placeholder="特殊要求等"
+                      className="min-h-[120px] text-xs resize-none"
+                    />
+                    <div className="flex justify-end mt-1">
+                      <span className={`text-[11px] tabular-nums ${contactInfoText.length >= 500 ? 'text-destructive font-medium' : contactInfoText.length >= 400 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                        {contactInfoText.length} / 500
+                      </span>
+                    </div>
+                  </div>
                 ) : (
                   supplier.contactInfo ? (
                     <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
@@ -1060,5 +1277,33 @@ export default function SupplierDetailModal({
         </ScrollArea>
       </DialogContent>
     </Dialog>
+
+    {/* 放弃编辑确认 */}
+    <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertTitle>放弃编辑？</AlertTitle>
+          <AlertDialogDescription>未保存的修改将会丢失。</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>继续编辑</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive hover:bg-destructive/90"
+            onClick={() => { handleCancel(); onClose(); }}
+          >
+            放弃
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    {/* 全屏灯箱 */}
+    {lightboxIndex !== null && artworkUrls.length > 0 && (
+      <LightboxOverlay
+        urls={artworkUrls}
+        startIndex={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+      />
+    )}
+    </>
   );
 }
