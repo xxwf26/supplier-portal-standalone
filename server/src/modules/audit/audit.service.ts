@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { desc, eq, and, sql } from 'drizzle-orm';
+import { count, desc, eq, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
 import { auditLog, suppliers } from '../../database/schema';
 import { exec } from 'child_process';
@@ -17,6 +17,17 @@ export interface ILogParams {
   oldData?: unknown;
   newData?: unknown;
   operatedBy?: string;
+}
+
+// 将快照中可能的字符串日期转换为 Date 对象
+function parseDateField(val: unknown): Date | null {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
 }
 
 @Injectable()
@@ -53,21 +64,14 @@ export class AuditService {
 
   async getLogs(page = 1, limit = 50, operation?: string) {
     const offset = (page - 1) * limit;
+    const where = operation ? eq(auditLog.operation, operation) : undefined;
 
-    const rows = await this.db
-      .select()
-      .from(auditLog)
-      .where(operation ? eq(auditLog.operation, operation) : undefined)
-      .orderBy(desc(auditLog.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const [rows, countResult] = await Promise.all([
+      this.db.select().from(auditLog).where(where).orderBy(desc(auditLog.createdAt)).limit(limit).offset(offset),
+      this.db.select({ total: count() }).from(auditLog).where(where),
+    ]);
 
-    const countRows = await this.db
-      .select({ id: auditLog.id })
-      .from(auditLog)
-      .where(operation ? eq(auditLog.operation, operation) : undefined);
-
-    return { list: rows, total: countRows.length, page, limit };
+    return { list: rows, total: countResult[0]?.total ?? 0, page, limit };
   }
 
   // ── 批次列表（导入历史） ─────────────────────────────────
@@ -81,13 +85,14 @@ export class AuditService {
       ORDER BY imported_at DESC
       LIMIT 100
     `);
-    return (result as any[])[0] as Array<{ import_batch_id: string; count: number; imported_at: string }>;
+    // drizzle mysql2 execute 返回 [rows, fields]
+    const rows = Array.isArray((result as any)[0]) ? (result as any)[0] : result;
+    return rows as Array<{ import_batch_id: string; count: number; imported_at: string }>;
   }
 
-  // ── 回滚批次 ─────────────────────────────────────────────
+  // ── 回滚批次（事务保证原子性） ────────────────────────────
 
   async rollbackBatch(batchId: string, operatedBy: string) {
-    // 先查出要删的数据（用于日志）
     const toDelete = await this.db
       .select()
       .from(suppliers)
@@ -97,19 +102,19 @@ export class AuditService {
       return { deleted: 0, message: '该批次数据已不存在' };
     }
 
-    // 写批量回滚审计记录
-    for (const row of toDelete) {
-      await this.log({
-        operation: 'BATCH_ROLLBACK',
-        recordId: row.id,
-        batchId,
-        oldData: row,
-        operatedBy,
-      });
-    }
-
-    // 删除该批次的所有供应商
-    await this.db.delete(suppliers).where(eq(suppliers.importBatchId, batchId));
+    await this.db.transaction(async (tx) => {
+      for (const row of toDelete) {
+        await tx.insert(auditLog).values({
+          operation: 'BATCH_ROLLBACK',
+          recordId: row.id,
+          batchId,
+          oldData: row,
+          newData: null,
+          operatedBy,
+        });
+      }
+      await tx.delete(suppliers).where(eq(suppliers.importBatchId, batchId));
+    });
 
     this.logger.log(`Rolled back batch ${batchId}: deleted ${toDelete.length} records by ${operatedBy}`);
     return { deleted: toDelete.length, message: `已撤销 ${toDelete.length} 条导入数据` };
@@ -146,7 +151,11 @@ export class AuditService {
           const skipFields = new Set(['id', 'createdAt', 'updatedAt', 'importBatchId', 'importSource']);
           const restoreData: Record<string, unknown> = { updatedAt: new Date() };
           for (const [k, v] of Object.entries(old)) {
-            if (!skipFields.has(k)) {
+            if (skipFields.has(k)) continue;
+            // 日期字段从 ISO 字符串转为 Date 对象
+            if (k === 'contractDeadline') {
+              restoreData[k] = parseDateField(v);
+            } else {
               restoreData[k] = v;
             }
           }
@@ -158,10 +167,8 @@ export class AuditService {
         if (entry.oldData) {
           const old = entry.oldData as Record<string, unknown>;
           const insertData: any = { ...old };
-          if (insertData.contractDeadline && typeof insertData.contractDeadline === 'string') {
-            insertData.contractDeadline = new Date(insertData.contractDeadline);
-          }
-          insertData.createdAt = insertData.createdAt ? new Date(insertData.createdAt) : new Date();
+          insertData.contractDeadline = parseDateField(insertData.contractDeadline);
+          insertData.createdAt = parseDateField(insertData.createdAt) ?? new Date();
           insertData.updatedAt = new Date();
           await this.db.insert(suppliers).values(insertData).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
         }
@@ -182,6 +189,8 @@ export class AuditService {
     return { message: '撤回成功' };
   }
 
+  // ── 快照：创建（通过 MYSQL_PWD 环境变量传密码，避免命令行注入） ──
+
   async createSnapshot(reason = 'manual'): Promise<{ filename: string; size: number }> {
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = `snapshot_${ts}_${reason}.sql`;
@@ -193,10 +202,11 @@ export class AuditService {
     const pass = this.config.get('DB_PASSWORD', '');
     const dbName = this.config.get('DB_NAME', 'supplier_portal');
 
-    const cmd = `mysqldump -h${host} -P${port} -u${user} -p${pass} --single-transaction --routines --triggers ${dbName} > "${filepath}"`;
+    // 通过 MYSQL_PWD 环境变量传递密码，避免命令行拼接导致的注入/解析风险
+    const cmd = `mysqldump -h${host} -P${port} -u${user} --single-transaction --routines --triggers ${dbName} > "${filepath}"`;
 
     try {
-      await execAsync(cmd);
+      await execAsync(cmd, { env: { ...process.env, MYSQL_PWD: pass } });
       const size = statSync(filepath).size;
       await this.log({ operation: 'SNAPSHOT', operatedBy: reason, batchId: filename });
       await this.pruneSnapshots();

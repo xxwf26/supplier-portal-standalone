@@ -26,6 +26,7 @@ import { logger } from '@/lib/polyfills/logger';
 import { toast } from 'sonner';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import { supplierTypeToBackend } from '@/lib/filterConfig';
+import { LimitedTextarea } from '@/components/ui/limited-textarea';
 
 const PRICE_UNIT_OPTIONS = [
   { value: '元/张', label: '元/张' },
@@ -125,26 +126,29 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
     priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0;
 
-  // 草稿自动保存
+  // 草稿自动保存（防抖 400ms）
   useEffect(() => {
     if (!open || !isDirty) return;
-    const draft = {
-      accountName, supplierType, cooperationTypes,
-      contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
-      contactItemEntries, savedAt: new Date().toISOString(),
-    };
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+    const timer = setTimeout(() => {
+      const draft = {
+        accountName, supplierType, cooperationTypes,
+        contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
+        contactItemEntries, savedAt: new Date().toISOString(),
+      };
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
   }, [open, isDirty, accountName, supplierType, cooperationTypes,
     contactInfo, entityType, styleTags, linkEntries, priceItemEntries, contactItemEntries]);
 
-  // 打开时检测草稿
+  // 打开时检测草稿（修复 stale closure：移除 !isDirty 条件，有草稿就显示 banner）
   useEffect(() => {
     if (!open) return;
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
         const d = JSON.parse(saved);
-        if (d.savedAt && !isDirty) setDraftSavedAt(d.savedAt);
+        if (d.savedAt) setDraftSavedAt(d.savedAt);
       }
     } catch {}
   }, [open]);
@@ -594,17 +598,11 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">备注</label>
-              <Textarea
+              <LimitedTextarea
                 value={contactInfo}
-                onChange={(e) => setContactInfo(e.target.value.slice(0, 500))}
+                onChange={setContactInfo}
                 placeholder="特殊要求等"
-                className="min-h-[100px] text-sm resize-none"
               />
-              <div className="flex justify-end mt-1">
-                <span className={`text-[11px] tabular-nums ${contactInfo.length >= 500 ? 'text-destructive font-medium' : contactInfo.length >= 400 ? 'text-orange-500' : 'text-muted-foreground'}`}>
-                  {contactInfo.length} / 500
-                </span>
-              </div>
             </div>
           </div>
 

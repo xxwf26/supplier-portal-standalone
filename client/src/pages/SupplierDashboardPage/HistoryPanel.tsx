@@ -265,9 +265,10 @@ function LogsTab({ onDataChange }: { onDataChange?: () => void }) {
   useEffect(() => { load(page); }, [load, page]);
 
   const handleRollbackSuccess = useCallback(() => {
-    load(page);
+    setPage(1);
+    load(1);
     onDataChange?.();
-  }, [load, page, onDataChange]);
+  }, [load, onDataChange]);
 
   const totalPages = Math.ceil(total / LIMIT);
 
@@ -314,6 +315,13 @@ function BatchesTab({ onDataChange }: { onDataChange?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [rolling, setRolling] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
+
+  // 确认状态 5s 后自动重置，与 LogCard 行为保持一致
+  useEffect(() => {
+    if (!confirm) return;
+    const timer = setTimeout(() => setConfirm(null), 5000);
+    return () => clearTimeout(timer);
+  }, [confirm]);
 
   const load = useCallback(async () => {
     setLoading(true);

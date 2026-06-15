@@ -98,7 +98,7 @@ let SupplierService = SupplierService_1 = class SupplierService {
             contractNo: data.contractNo || null,
             contractDeadline: data.contractDeadline ? new Date(data.contractDeadline) : null,
             taxStatus: data.taxStatus || null,
-            contactInfo: data.contactInfo || null,
+            contactInfo: data.contactInfo ? data.contactInfo.slice(0, 500) : null,
             contactItems: data.contactItems || [],
             cooperationCategory: data.cooperationCategory || null,
             supplierType: data.supplierType || null,

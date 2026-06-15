@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import HistoryPanel from './HistoryPanel';
+import { inferSupplierType } from '@/lib/supplierUtils';
 
 // Lazy-load heavy components
 const ExcelImportModal = lazy(() => import('./ExcelImportModal'));
@@ -26,15 +27,7 @@ function getInitialViewMode(): 'pc' | 'mobile' {
 
 // 转换API数据到前端格式
 function processSupplier(raw: ISupplier): IProcessedSupplier {
-  let type: 'individual' | 'studio' | 'company' | 'artist';
-  const name = raw.accountName || '';
-  if (name.includes('工作室')) {
-    type = 'studio';
-  } else if (name.includes('公司') || name.includes('有限') || name.includes('股份')) {
-    type = 'company';
-  } else {
-    type = 'individual';
-  }
+  const type = inferSupplierType(raw.accountName || '', raw.supplierType);
 
   const styles: string[] = [];
   if (raw.subCategory) {
@@ -86,10 +79,10 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
   }
 
   const links: Record<string, string> = {};
-  Object.entries(raw.socialLinks).forEach(([key, url]) => {
+  Object.entries(raw.socialLinks || {}).forEach(([key, url]) => {
     if (url) links[key] = url;
   });
-  Object.entries(raw.manualLinks).forEach(([key, url]) => {
+  Object.entries(raw.manualLinks || {}).forEach(([key, url]) => {
     if (url) links[key] = url;
   });
 
@@ -448,7 +441,7 @@ export default function SupplierDashboardPage() {
           {/* 浮动筛选按钮 */}
           <button
             onClick={() => setIsMobileFilterOpen(true)}
-            className="fixed bottom-6 left-4 z-40 flex items-center gap-2 bg-primary text-white rounded-full px-4 py-2.5 shadow-lg active:scale-95 transition-transform"
+            className={`fixed ${selectedIds.size > 0 ? 'bottom-20' : 'bottom-6'} left-4 z-40 flex items-center gap-2 bg-primary text-white rounded-full px-4 py-2.5 shadow-lg active:scale-95 transition-all duration-200`}
           >
             <FilterIcon className="w-4 h-4" />
             <span className="text-sm font-medium">筛选</span>

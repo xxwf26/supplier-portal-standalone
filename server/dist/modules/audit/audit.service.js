@@ -24,6 +24,18 @@ const path_1 = require("path");
 const fs_1 = require("fs");
 const config_1 = require("@nestjs/config");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
+// 将快照中可能的字符串日期转换为 Date 对象
+function parseDateField(val) {
+    if (!val)
+        return null;
+    if (val instanceof Date)
+        return val;
+    if (typeof val === 'string') {
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+}
 let AuditService = AuditService_1 = class AuditService {
     db;
     config;
@@ -55,18 +67,12 @@ let AuditService = AuditService_1 = class AuditService {
     // ── 读审计日志（分页） ───────────────────────────────────
     async getLogs(page = 1, limit = 50, operation) {
         const offset = (page - 1) * limit;
-        const rows = await this.db
-            .select()
-            .from(schema_1.auditLog)
-            .where(operation ? (0, drizzle_orm_1.eq)(schema_1.auditLog.operation, operation) : undefined)
-            .orderBy((0, drizzle_orm_1.desc)(schema_1.auditLog.createdAt))
-            .limit(limit)
-            .offset(offset);
-        const countRows = await this.db
-            .select({ id: schema_1.auditLog.id })
-            .from(schema_1.auditLog)
-            .where(operation ? (0, drizzle_orm_1.eq)(schema_1.auditLog.operation, operation) : undefined);
-        return { list: rows, total: countRows.length, page, limit };
+        const where = operation ? (0, drizzle_orm_1.eq)(schema_1.auditLog.operation, operation) : undefined;
+        const [rows, countResult] = await Promise.all([
+            this.db.select().from(schema_1.auditLog).where(where).orderBy((0, drizzle_orm_1.desc)(schema_1.auditLog.createdAt)).limit(limit).offset(offset),
+            this.db.select({ total: (0, drizzle_orm_1.count)() }).from(schema_1.auditLog).where(where),
+        ]);
+        return { list: rows, total: countResult[0]?.total ?? 0, page, limit };
     }
     // ── 批次列表（导入历史） ─────────────────────────────────
     async getBatches() {
@@ -78,11 +84,12 @@ let AuditService = AuditService_1 = class AuditService {
       ORDER BY imported_at DESC
       LIMIT 100
     `);
-        return result[0];
+        // drizzle mysql2 execute 返回 [rows, fields]
+        const rows = Array.isArray(result[0]) ? result[0] : result;
+        return rows;
     }
-    // ── 回滚批次 ─────────────────────────────────────────────
+    // ── 回滚批次（事务保证原子性） ────────────────────────────
     async rollbackBatch(batchId, operatedBy) {
-        // 先查出要删的数据（用于日志）
         const toDelete = await this.db
             .select()
             .from(schema_1.suppliers)
@@ -90,18 +97,19 @@ let AuditService = AuditService_1 = class AuditService {
         if (toDelete.length === 0) {
             return { deleted: 0, message: '该批次数据已不存在' };
         }
-        // 写批量回滚审计记录
-        for (const row of toDelete) {
-            await this.log({
-                operation: 'BATCH_ROLLBACK',
-                recordId: row.id,
-                batchId,
-                oldData: row,
-                operatedBy,
-            });
-        }
-        // 删除该批次的所有供应商
-        await this.db.delete(schema_1.suppliers).where((0, drizzle_orm_1.eq)(schema_1.suppliers.importBatchId, batchId));
+        await this.db.transaction(async (tx) => {
+            for (const row of toDelete) {
+                await tx.insert(schema_1.auditLog).values({
+                    operation: 'BATCH_ROLLBACK',
+                    recordId: row.id,
+                    batchId,
+                    oldData: row,
+                    newData: null,
+                    operatedBy,
+                });
+            }
+            await tx.delete(schema_1.suppliers).where((0, drizzle_orm_1.eq)(schema_1.suppliers.importBatchId, batchId));
+        });
         this.logger.log(`Rolled back batch ${batchId}: deleted ${toDelete.length} records by ${operatedBy}`);
         return { deleted: toDelete.length, message: `已撤销 ${toDelete.length} 条导入数据` };
     }
@@ -132,7 +140,13 @@ let AuditService = AuditService_1 = class AuditService {
                     const skipFields = new Set(['id', 'createdAt', 'updatedAt', 'importBatchId', 'importSource']);
                     const restoreData = { updatedAt: new Date() };
                     for (const [k, v] of Object.entries(old)) {
-                        if (!skipFields.has(k)) {
+                        if (skipFields.has(k))
+                            continue;
+                        // 日期字段从 ISO 字符串转为 Date 对象
+                        if (k === 'contractDeadline') {
+                            restoreData[k] = parseDateField(v);
+                        }
+                        else {
                             restoreData[k] = v;
                         }
                     }
@@ -144,10 +158,8 @@ let AuditService = AuditService_1 = class AuditService {
                 if (entry.oldData) {
                     const old = entry.oldData;
                     const insertData = { ...old };
-                    if (insertData.contractDeadline && typeof insertData.contractDeadline === 'string') {
-                        insertData.contractDeadline = new Date(insertData.contractDeadline);
-                    }
-                    insertData.createdAt = insertData.createdAt ? new Date(insertData.createdAt) : new Date();
+                    insertData.contractDeadline = parseDateField(insertData.contractDeadline);
+                    insertData.createdAt = parseDateField(insertData.createdAt) ?? new Date();
                     insertData.updatedAt = new Date();
                     await this.db.insert(schema_1.suppliers).values(insertData).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
                 }
@@ -165,6 +177,7 @@ let AuditService = AuditService_1 = class AuditService {
         this.logger.log(`Log ${logId} rolled back by ${operatedBy}`);
         return { message: '撤回成功' };
     }
+    // ── 快照：创建（通过 MYSQL_PWD 环境变量传密码，避免命令行注入） ──
     async createSnapshot(reason = 'manual') {
         const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         const filename = `snapshot_${ts}_${reason}.sql`;
@@ -174,9 +187,10 @@ let AuditService = AuditService_1 = class AuditService {
         const user = this.config.get('DB_USER', 'root');
         const pass = this.config.get('DB_PASSWORD', '');
         const dbName = this.config.get('DB_NAME', 'supplier_portal');
-        const cmd = `mysqldump -h${host} -P${port} -u${user} -p${pass} --single-transaction --routines --triggers ${dbName} > "${filepath}"`;
+        // 通过 MYSQL_PWD 环境变量传递密码，避免命令行拼接导致的注入/解析风险
+        const cmd = `mysqldump -h${host} -P${port} -u${user} --single-transaction --routines --triggers ${dbName} > "${filepath}"`;
         try {
-            await execAsync(cmd);
+            await execAsync(cmd, { env: { ...process.env, MYSQL_PWD: pass } });
             const size = (0, fs_1.statSync)(filepath).size;
             await this.log({ operation: 'SNAPSHOT', operatedBy: reason, batchId: filename });
             await this.pruneSnapshots();

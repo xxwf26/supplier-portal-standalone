@@ -27,7 +27,7 @@ let AuthService = class AuthService {
     }
     login(user, rememberMe = false) {
         const payload = { sub: user.id, username: user.username, role: user.role };
-        const expiresIn = rememberMe ? '30d' : '30d';
+        const expiresIn = rememberMe ? '30d' : '8h';
         return {
             access_token: this.jwtService.sign(payload, { expiresIn }),
             user: { username: user.username, role: user.role },

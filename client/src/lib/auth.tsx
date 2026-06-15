@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth', JSON.stringify(auth));
 
     if (rememberMe) {
-      localStorage.setItem('__saved_creds', JSON.stringify({ username, password }));
+      localStorage.setItem('__saved_creds', JSON.stringify({ username }));
     }
 
     setUser(auth.user);
