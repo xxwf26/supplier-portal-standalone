@@ -377,10 +377,6 @@ export default function SupplierDashboardPage() {
                 共 <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> 个供应商
               </p>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground mr-1">
-                  {user?.username} ({isAdmin ? '管理员' : '仅查看'})
-                </span>
-                <Button variant="ghost" size="sm" onClick={logout} className="text-xs">退出</Button>
                 {isAdmin && (
                   <>
                     <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setIsHistoryOpen(true)}>
@@ -423,10 +419,6 @@ export default function SupplierDashboardPage() {
                 共 <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> 个供应商
               </p>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">
-                  {user?.username}
-                </span>
-                <Button variant="ghost" size="sm" onClick={logout} className="text-xs h-7 px-2">退出</Button>
                 {isAdmin && (
                   <>
                     <Button variant="ghost" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsHistoryOpen(true)}>
