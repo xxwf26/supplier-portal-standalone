@@ -618,10 +618,15 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">备注</label>
               <Textarea
                 value={contactInfo}
-                onChange={(e) => setContactInfo(e.target.value)}
+                onChange={(e) => setContactInfo(e.target.value.slice(0, 500))}
                 placeholder="特殊要求等"
-                className="min-h-[80px] text-sm"
+                className="min-h-[100px] text-sm resize-none"
               />
+              <div className="flex justify-end mt-1">
+                <span className={`text-[11px] tabular-nums ${contactInfo.length >= 500 ? 'text-destructive font-medium' : contactInfo.length >= 400 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                  {contactInfo.length} / 500
+                </span>
+              </div>
             </div>
           </div>
 

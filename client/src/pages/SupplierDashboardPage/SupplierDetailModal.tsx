@@ -1071,12 +1071,19 @@ export default function SupplierDetailModal({
               </div>
               <div className={moduleBody}>
                 {isEditing ? (
-                  <Textarea
-                    value={contactInfoText}
-                    onChange={(e) => setContactInfoText(e.target.value)}
-                    placeholder="特殊要求等"
-                    className="min-h-[80px] text-xs"
-                  />
+                  <div>
+                    <Textarea
+                      value={contactInfoText}
+                      onChange={(e) => setContactInfoText(e.target.value.slice(0, 500))}
+                      placeholder="特殊要求等"
+                      className="min-h-[120px] text-xs resize-none"
+                    />
+                    <div className="flex justify-end mt-1">
+                      <span className={`text-[11px] tabular-nums ${contactInfoText.length >= 500 ? 'text-destructive font-medium' : contactInfoText.length >= 400 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                        {contactInfoText.length} / 500
+                      </span>
+                    </div>
+                  </div>
                 ) : (
                   supplier.contactInfo ? (
                     <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
