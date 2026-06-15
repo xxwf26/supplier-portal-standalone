@@ -849,7 +849,7 @@ export default function SupplierDetailModal({
                               key={style}
                               variant="outline"
                               className={cn(
-                                'text-[10px] cursor-pointer group',
+                                'text-xs cursor-pointer group',
                                 styleColorMap[style] || 'bg-muted text-muted-foreground border-border'
                               )}
                             >
@@ -870,7 +870,7 @@ export default function SupplierDetailModal({
                             <button
                               key={preset}
                               onClick={() => addStyleTag(preset)}
-                              className="px-1.5 py-0 rounded-full text-[10px] border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                              className="px-1.5 py-0.5 rounded-full text-xs border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                             >
                               + {preset}
                             </button>
@@ -889,7 +889,7 @@ export default function SupplierDetailModal({
                               handleAddTagFromInput();
                             }
                           }}
-                          className="flex-1 text-[10px] h-6"
+                          className="flex-1 text-xs h-7"
                         />
                         <Button variant="outline" size="sm" onClick={handleAddTagFromInput} className="h-6 w-6 p-0">
                           <PlusIcon className="w-3 h-3" />
@@ -904,7 +904,7 @@ export default function SupplierDetailModal({
                             key={style}
                             variant="outline"
                             className={cn(
-                              'text-[10px]',
+                              'text-xs',
                               styleColorMap[style] || 'bg-muted text-muted-foreground border-border'
                             )}
                           >
@@ -935,7 +935,7 @@ export default function SupplierDetailModal({
                             onCheckedChange={() => toggleCooperationType(opt.value)}
                             className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                           />
-                          <span className="text-[10px] text-foreground group-hover:text-primary transition-colors">
+                          <span className="text-xs text-foreground group-hover:text-primary transition-colors">
                             {opt.label}
                           </span>
                         </label>
@@ -945,7 +945,7 @@ export default function SupplierDetailModal({
                     supplier.cooperationType ? (
                       <div className="flex flex-wrap gap-1">
                         {supplier.cooperationType.split(/[\/、，]/).map((s) => s.trim()).filter(Boolean).map((ct) => (
-                          <Badge key={ct} variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                          <Badge key={ct} variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
                             {ct}
                           </Badge>
                         ))}

@@ -404,8 +404,16 @@ function SnapshotsTab() {
       const res = await auditApi.createSnapshot();
       toast.success(`快照已创建：${res.filename}（${formatSize(res.size)}）`);
       load();
-    } catch {
-      toast.error('快照创建失败，请检查 mysqldump 是否可用');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message || err?.message || '未知错误';
+      const status = err?.response?.status;
+      if (status === 403) {
+        toast.error('权限不足，需要管理员账号');
+      } else if (status === 401) {
+        toast.error('登录已过期，请重新登录');
+      } else {
+        toast.error(`快照创建失败：${msg}`);
+      }
     } finally {
       setCreating(false);
     }
