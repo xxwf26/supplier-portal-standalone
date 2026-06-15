@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import HistoryPanel from './HistoryPanel';
 import { inferSupplierType } from '@/lib/supplierUtils';
+import { normalizeForSearch } from '@/lib/chineseNormalize';
 
 // Lazy-load heavy components
 const ExcelImportModal = lazy(() => import('./ExcelImportModal'));
@@ -187,11 +188,11 @@ export default function SupplierDashboardPage() {
       result = result.filter((s) => s.project.some((p) => currentFilters.projects.includes(p)));
     }
     if (currentFilters.keyword) {
-      const keyword = currentFilters.keyword.toLowerCase();
+      const keyword = normalizeForSearch(currentFilters.keyword);
       result = result.filter(
         (s) =>
-          s.name.toLowerCase().includes(keyword) ||
-          (s.notes && s.notes.toLowerCase().includes(keyword))
+          normalizeForSearch(s.name).includes(keyword) ||
+          (s.notes && normalizeForSearch(s.notes).includes(keyword))
       );
     }
 
