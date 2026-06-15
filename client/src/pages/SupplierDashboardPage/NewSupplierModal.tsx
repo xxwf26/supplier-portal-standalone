@@ -321,6 +321,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
     <>
     <Dialog open={open} onOpenChange={(v) => !v && handleWantsToClose()}>
       <DialogContent
+        aria-describedby={undefined}
         className="max-w-2xl w-full max-h-[85vh] p-0 overflow-hidden flex flex-col"
         onPointerDownOutside={(e) => isDirty && e.preventDefault()}
         onEscapeKeyDown={(e) => isDirty && e.preventDefault()}

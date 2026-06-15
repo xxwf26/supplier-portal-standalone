@@ -291,7 +291,7 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl w-full max-h-[85vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent aria-describedby={undefined} className="max-w-3xl w-full max-h-[85vh] p-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
             <FileSpreadsheetIcon className="w-5 h-5 text-primary" />

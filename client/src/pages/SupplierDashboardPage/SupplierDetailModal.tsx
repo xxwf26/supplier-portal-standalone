@@ -595,6 +595,7 @@ export default function SupplierDetailModal({
     <>
     <Dialog open={open} onOpenChange={(v) => !v && handleWantsToClose()}>
       <DialogContent
+        aria-describedby={undefined}
         className="max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden"
         showCloseButton={false}
         onPointerDownOutside={(e) => isEditing && e.preventDefault()}

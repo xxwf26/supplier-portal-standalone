@@ -465,7 +465,7 @@ export default function HistoryPanel({
 }) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col">
+      <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[88vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>数据管理 · 历史记录</DialogTitle>
         </DialogHeader>
