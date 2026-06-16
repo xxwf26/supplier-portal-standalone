@@ -3,13 +3,16 @@ import { useAuth } from '@/lib/auth';
 import { DEFAULT_FILTER_CONFIG, CATEGORY_LABELS, STORAGE_KEY, FilterOption } from '@/lib/filterConfig';
 
 const COLORS = [
-  { v: 'blue', n: '蓝' }, { v: 'amber', n: '琥珀' }, { v: 'green', n: '绿' },
-  { v: 'red', n: '红' }, { v: 'purple', n: '紫' }, { v: 'pink', n: '粉' },
-  { v: 'cyan', n: '青' }, { v: 'yellow', n: '黄' }, { v: 'gray', n: '灰' },
-  { v: 'indigo', n: '靛' }, { v: 'teal', n: '青绿' }, { v: 'emerald', n: '翠' },
-  { v: 'orange', n: '橙' }, { v: 'violet', n: '紫罗兰' }, { v: 'rose', n: '玫瑰' },
-  { v: 'slate', n: '石板' }, { v: 'lime', n: '石灰' }, { v: 'stone', n: '石' },
-  { v: 'sky', n: '天蓝' }, { v: 'fuchsia', n: '紫红' },
+  { v: 'blue', n: '蓝', hex: '#3b82f6' }, { v: 'amber', n: '琥珀', hex: '#f59e0b' },
+  { v: 'green', n: '绿', hex: '#22c55e' }, { v: 'red', n: '红', hex: '#ef4444' },
+  { v: 'purple', n: '紫', hex: '#a855f7' }, { v: 'pink', n: '粉', hex: '#ec4899' },
+  { v: 'cyan', n: '青', hex: '#06b6d4' }, { v: 'yellow', n: '黄', hex: '#eab308' },
+  { v: 'gray', n: '灰', hex: '#6b7280' }, { v: 'indigo', n: '靛', hex: '#6366f1' },
+  { v: 'teal', n: '青绿', hex: '#14b8a6' }, { v: 'emerald', n: '翠', hex: '#10b981' },
+  { v: 'orange', n: '橙', hex: '#f97316' }, { v: 'violet', n: '紫罗兰', hex: '#8b5cf6' },
+  { v: 'rose', n: '玫瑰', hex: '#f43f5e' }, { v: 'slate', n: '石板', hex: '#64748b' },
+  { v: 'lime', n: '石灰', hex: '#84cc16' }, { v: 'stone', n: '石', hex: '#78716c' },
+  { v: 'sky', n: '天蓝', hex: '#0ea5e9' }, { v: 'fuchsia', n: '紫红', hex: '#d946ef' },
 ];
 
 export default function SystemConfigPage() {
@@ -107,10 +110,11 @@ function ConfigManager() {
         {items.map((item, idx) => (
           <div key={idx} className="flex items-center gap-3 bg-white border border-border rounded-lg px-4 py-2.5">
             {isStyle && (
-              <div className="flex items-center gap-1 shrink-0">
-                {COLORS.slice(0, 10).map(c => (
+              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                {COLORS.map(c => (
                   <button key={c.v} onClick={() => setColor(idx, c.v)}
-                    className={`w-4 h-4 rounded-full bg-${c.v}-500 transition-transform hover:scale-125 ${item.color === c.v ? 'ring-2 ring-offset-1 ring-primary scale-125' : 'opacity-40 hover:opacity-80'}`}
+                    style={{ backgroundColor: c.hex }}
+                    className={`w-5 h-5 rounded-full transition-transform hover:scale-125 ${item.color === c.v ? 'ring-2 ring-offset-1 ring-primary scale-125' : 'opacity-50 hover:opacity-100'}`}
                     title={c.n} />
                 ))}
               </div>

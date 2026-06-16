@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle as AlertTitle,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -391,6 +396,8 @@ function SnapshotsTab() {
   const [snapshots, setSnapshots] = useState<ISnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -408,19 +415,30 @@ function SnapshotsTab() {
     } catch (err: any) {
       const msg = err?.response?.data?.error?.message || err?.message || '未知错误';
       const status = err?.response?.status;
-      if (status === 403) {
-        toast.error('权限不足，需要管理员账号');
-      } else if (status === 401) {
-        toast.error('登录已过期，请重新登录');
-      } else {
-        toast.error(`快照创建失败：${msg}`);
-      }
+      if (status === 403) toast.error('权限不足，需要管理员账号');
+      else if (status === 401) toast.error('登录已过期，请重新登录');
+      else toast.error(`快照创建失败：${msg}`);
     } finally {
       setCreating(false);
     }
   };
 
+  const handleRestore = async (filename: string) => {
+    setConfirmRestore(null);
+    setRestoring(filename);
+    try {
+      const res = await auditApi.restoreSnapshot(filename);
+      toast.success(res.message);
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err: any) {
+      toast.error('恢复失败：' + (err?.response?.data?.error?.message || err?.message || '未知错误'));
+    } finally {
+      setRestoring(null);
+    }
+  };
+
   return (
+    <>
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">每次批量导入前自动创建快照，最多保留 <span className="font-semibold text-foreground">30</span> 份</p>
@@ -437,19 +455,52 @@ function SnapshotsTab() {
       ) : (
         <div className="space-y-1.5">
           {snapshots.map((s) => (
-            <div key={s.filename} className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2.5">
-              <div>
-                <div className="text-xs font-mono text-foreground">{s.filename}</div>
+            <div key={s.filename} className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2.5 gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-mono text-foreground truncate">{s.filename}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">{fullDate(s.createdAt)} &nbsp;·&nbsp; {formatSize(s.size)}</div>
               </div>
-              <Badge variant="outline" className="text-[10px] shrink-0">
-                {s.filename.includes('pre_import') ? '导入前' : '手动'}
-              </Badge>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="outline" className="text-[10px]">
+                  {s.filename.includes('pre_import') ? '导入前' : s.filename.includes('SNAPSHOT_RESTORE') ? '恢复点' : '手动'}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-xs px-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+                  disabled={restoring === s.filename}
+                  onClick={() => setConfirmRestore(s.filename)}
+                >
+                  {restoring === s.filename ? '恢复中…' : '恢复'}
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       )}
     </div>
+
+    {/* 恢复快照确认 */}
+    <AlertDialog open={!!confirmRestore} onOpenChange={() => setConfirmRestore(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertTitle>确认恢复此快照？</AlertTitle>
+          <AlertDialogDescription>
+            将把数据库恢复到「{confirmRestore}」时的状态，当前所有数据会被覆盖，此操作不可撤销。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive hover:bg-destructive/90"
+            onClick={() => confirmRestore && handleRestore(confirmRestore)}
+          >
+            确认恢复
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

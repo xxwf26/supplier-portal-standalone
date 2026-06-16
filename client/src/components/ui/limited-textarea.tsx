@@ -26,12 +26,17 @@ export function LimitedTextarea({
     'text-muted-foreground';
 
   return (
-    <div>
+    <div className="w-full">
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value.slice(0, maxLength))}
         placeholder={placeholder}
-        className={cn('resize-none', minHeight, className)}
+        className={cn(
+          'w-full resize-none break-words overflow-wrap-anywhere',
+          minHeight,
+          className
+        )}
+        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
       />
       <div className="flex justify-end mt-1">
         <span className={cn('text-[11px] tabular-nums', countColor)}>

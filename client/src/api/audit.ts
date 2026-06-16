@@ -54,6 +54,11 @@ export const auditApi = {
     return res.data as ISnapshot[];
   },
 
+  restoreSnapshot: async (filename: string) => {
+    const res = await axiosForBackend.post(`${BASE}/restore-snapshot/${encodeURIComponent(filename)}`);
+    return res.data as { message: string };
+  },
+
   createSnapshot: async () => {
     const res = await axiosForBackend.post(`${BASE}/snapshots`);
     return res.data as { filename: string; size: number };

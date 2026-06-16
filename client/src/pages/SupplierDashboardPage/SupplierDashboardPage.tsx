@@ -196,15 +196,28 @@ export default function SupplierDashboardPage() {
       result = result.filter((s) => currentFilters.status.includes(s.status));
     }
     if (currentFilters.styles.length > 0) {
-      result = result.filter((s) => s.styles.some((st) => currentFilters.styles.includes(st)));
+      const hasUnset = currentFilters.styles.includes('__unset__');
+      const realStyles = currentFilters.styles.filter(s => s !== '__unset__');
+      result = result.filter((s) =>
+        (hasUnset && s.styles.length === 0) ||
+        (realStyles.length > 0 && s.styles.some((st) => realStyles.includes(st)))
+      );
     }
     if (currentFilters.cooperationTypes.length > 0) {
+      const hasUnset = currentFilters.cooperationTypes.includes('__unset__');
+      const realTypes = currentFilters.cooperationTypes.filter(t => t !== '__unset__');
       result = result.filter((s) =>
-        s.cooperationTypes.some((ct) => currentFilters.cooperationTypes.includes(ct))
+        (hasUnset && s.cooperationTypes.length === 0) ||
+        (realTypes.length > 0 && s.cooperationTypes.some((ct) => realTypes.includes(ct)))
       );
     }
     if (currentFilters.projects.length > 0) {
-      result = result.filter((s) => s.project.some((p) => currentFilters.projects.includes(p)));
+      const hasUnset = currentFilters.projects.includes('__unset__');
+      const realProjects = currentFilters.projects.filter(p => p !== '__unset__');
+      result = result.filter((s) =>
+        (hasUnset && s.project.length === 0) ||
+        (realProjects.length > 0 && s.project.some((p) => realProjects.includes(p)))
+      );
     }
 
     result = result.filter(

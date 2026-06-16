@@ -131,6 +131,11 @@ export default function FilterPanelSection({
               <span className="text-sm text-foreground group-hover:text-primary transition-colors">{option.label}</span>
             </label>
           ))}
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <Checkbox checked={filters.cooperationTypes.includes('__unset__')} onCheckedChange={() => toggleArrayFilter('cooperationTypes', '__unset__')}
+              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+            <span className="text-sm text-muted-foreground group-hover:text-primary transition-colors">未填写</span>
+          </label>
         </div>
       </div>
 
@@ -148,6 +153,14 @@ export default function FilterPanelSection({
               {option.label}
             </button>
           ))}
+          <button onClick={() => toggleArrayFilter('styles', '__unset__')}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
+              filters.styles.includes('__unset__')
+                ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}>
+            未填写
+          </button>
         </div>
       </div>
 
@@ -187,6 +200,11 @@ export default function FilterPanelSection({
               <span className="text-sm text-foreground group-hover:text-primary transition-colors">{option.label}</span>
             </label>
           ))}
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <Checkbox checked={filters.projects.includes('__unset__')} onCheckedChange={() => toggleArrayFilter('projects', '__unset__')}
+              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+            <span className="text-sm text-muted-foreground group-hover:text-primary transition-colors">未填写</span>
+          </label>
         </div>
       </div>
     </>

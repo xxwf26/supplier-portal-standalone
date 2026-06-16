@@ -612,8 +612,8 @@ export default function SupplierDetailModal({
         aria-describedby={undefined}
         className="max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden"
         showCloseButton={false}
-        onPointerDownOutside={(e) => isEditing && e.preventDefault()}
-        onEscapeKeyDown={(e) => isEditing && e.preventDefault()}
+        onPointerDownOutside={(e) => { if (isEditing) { e.preventDefault(); setShowConfirm(true); } }}
+        onEscapeKeyDown={(e) => { if (isEditing) { e.preventDefault(); setShowConfirm(true); } }}
       >
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">

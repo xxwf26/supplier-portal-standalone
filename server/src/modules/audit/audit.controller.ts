@@ -53,6 +53,14 @@ export class AuditController {
     return this.auditService.listSnapshots();
   }
 
+  /** 恢复快照（管理员） */
+  @Post('restore-snapshot/:filename')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  restoreSnapshot(@Param('filename') filename: string, @Request() req: any) {
+    return this.auditService.restoreSnapshot(decodeURIComponent(filename), req.user?.username ?? 'admin');
+  }
+
   /** 手动创建快照（管理员） */
   @Post('snapshots')
   @UseGuards(RolesGuard)
