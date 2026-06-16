@@ -69,18 +69,22 @@ const CONTACT_TYPE_OPTIONS = [
 const PLATFORM_OPTIONS = [
   { value: 'xiaohongshu', label: '小红书' },
   { value: 'weibo', label: '微博' },
+  { value: 'bilibili', label: 'B站' },
+  { value: 'pixiv', label: 'P站' },
   { value: 'mihuashi', label: '米画师' },
   { value: 'x', label: 'X' },
+  { value: 'other', label: '其他' },
 ];
 
 const platformLabels: Record<string, string> = {
   weibo: '微博',
-  pixiv: 'Pixiv',
+  pixiv: 'P站',
   xiaohongshu: '小红书',
   website: '官网',
   bilibili: 'B站',
   mihuashi: '米画师',
   x: 'X',
+  other: '其他',
 };
 
 const contactTypeLabels: Record<string, string> = {
