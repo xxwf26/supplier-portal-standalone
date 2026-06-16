@@ -70,7 +70,7 @@ export default function HeaderSection({ viewMode = 'pc' }: HeaderSectionProps) {
     },
   };
 
-  const studioCount = stats.total - (stats.individualCount + stats.companyCount);
+  const studioCount = stats.studioCount ?? (stats.total - (stats.individualCount + stats.companyCount));
 
   const statCards = [
     { icon: <UsersIcon className="w-5 h-5 text-white" />, label: '供应商总数', value: loading ? 0 : stats.total, delay: 0.1 },

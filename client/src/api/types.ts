@@ -59,6 +59,7 @@ export interface ISupplierStatistics {
   total: number;
   individualCount: number;
   companyCount: number;
+  studioCount: number;
   activeCount: number;
   categoryCount: Record<string, number>;
   riskCount: Record<string, number>;

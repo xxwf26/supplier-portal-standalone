@@ -366,7 +366,11 @@ export class SupplierService {
 
     const total = all.length;
     const individualCount = all.filter(s => s.supplierType === '个人').length;
-    const companyCount = all.filter(s => s.supplierType === '公司' || s.supplierType === '个体工商户').length;
+    const companyCount = all.filter(s =>
+      s.supplierType === '公司' || s.supplierType === '个体工商户' || s.supplierType === '一般企业'
+    ).length;
+    // 工作室直接按字段计数，不用残差（避免艺术家等其他类型被误算进来）
+    const studioCount = all.filter(s => s.supplierType === '工作室').length;
     const activeCount = all.filter(s => s.isInStock && s.riskStatus !== '拉黑').length;
 
     const categoryCount: Record<string, number> = {};
@@ -386,6 +390,7 @@ export class SupplierService {
       total,
       individualCount,
       companyCount,
+      studioCount,
       activeCount,
       categoryCount,
       riskCount,
