@@ -671,10 +671,12 @@ export default function SupplierDetailModal({
                     {typeInfo.label}
                   </Badge>
                 )}
+                {isAdmin && (
                 <Badge variant="outline" className={cn(statusInfo.color, 'text-xs')}>
                   <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', statusInfo.dotColor)} />
                   {statusInfo.label}
                 </Badge>
+                )}
               </div>
             </div>
             {isAdmin && (
@@ -708,8 +710,9 @@ export default function SupplierDetailModal({
                 <ShieldIcon className="w-3.5 h-3.5 text-primary" />
                 <span className="text-xs font-semibold">概览</span>
               </div>
-              <div className="grid grid-cols-3 divide-x divide-border/40">
-                {/* Status */}
+              <div className={isAdmin ? "grid grid-cols-3 divide-x divide-border/40" : "grid grid-cols-2 divide-x divide-border/40"}>
+                {/* Status — 仅管理员可见 */}
+                {isAdmin && (
                 <div className="p-3 text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">合作状态</p>
                   {isEditing ? (
@@ -730,6 +733,7 @@ export default function SupplierDetailModal({
                     </span>
                   )}
                 </div>
+                )}
                 {/* Frequency */}
                 <div className="p-3 text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">合作频次</p>
@@ -1092,8 +1096,9 @@ export default function SupplierDetailModal({
             </div>
 
             {/* Row 5: Contacts + Links — 2 column */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Contact Module */}
+            <div className={isAdmin ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
+              {/* Contact Module — 仅管理员可见 */}
+              {isAdmin && (
               <div className={cn(moduleBase)}>
                 <div className={cn(moduleHeader, 'justify-between')}>
                   <div className="flex items-center gap-1.5">
@@ -1158,6 +1163,7 @@ export default function SupplierDetailModal({
                   )}
                 </div>
               </div>
+              )}
 
               {/* Platform Links Module */}
               <div className={cn(moduleBase)}>
