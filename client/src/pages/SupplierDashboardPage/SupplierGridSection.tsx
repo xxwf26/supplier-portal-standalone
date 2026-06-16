@@ -251,14 +251,14 @@ const SupplierCard = React.memo(function SupplierCard({
           )}
         </div>
 
-        {/* Price Info */}
+        {/* 报价 */}
         {displayPrice && (
           <div className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
             {displayPrice}
           </div>
         )}
 
-        {/* Contact Info */}
+        {/* 联系方式 */}
         {supplier.contactItems && supplier.contactItems.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {supplier.contactItems.map((c, i) => (
@@ -269,6 +269,13 @@ const SupplierCard = React.memo(function SupplierCard({
                 {c.type === 'wechat' ? '微信' : c.type === 'qq' ? 'QQ' : '电话'}: {c.value}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* 备注 */}
+        {supplier.notes && (
+          <div className="mt-1.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+            {supplier.notes}
           </div>
         )}
       </div>

@@ -1053,6 +1053,8 @@ export default function SupplierDetailModal({
                         </div>
                       ))}
                     </div>
+                  ) : supplier.priceRange ? (
+                    <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{supplier.priceRange}</p>
                   ) : (
                     <p className="text-xs text-muted-foreground text-center py-1">暂无报价信息</p>
                   )
