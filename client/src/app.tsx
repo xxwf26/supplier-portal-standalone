@@ -39,7 +39,6 @@ export default function AppRoutes() {
       {/* Top Nav */}
       <div className="sticky top-0 z-10 bg-white border-b border-border px-6 py-2 flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <div className="w-7 h-7 rounded-md bg-primary text-white font-extrabold grid place-items-center text-xs mr-2">恋</div>
           <button
             onClick={() => navigate('/')}
             className={`px-3 py-1.5 rounded-md text-sm transition-colors ${!isConfig ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
