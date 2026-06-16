@@ -307,6 +307,9 @@ export default function SupplierDashboardPage() {
 
   const handleSelectAll = useCallback(() => {
     const allIds = displaySuppliers.map((s) => s.id);
+    if (allIds.length > 200) {
+      toast.warning(`当前共 ${allIds.length} 条结果，已全选，导出可能需要较长时间`);
+    }
     setSelectedIds(new Set(allIds));
   }, [displaySuppliers]);
 

@@ -73,6 +73,7 @@ interface NewSupplierModalProps {
 }
 
 const MAX_PRICE_ITEMS = 5;
+const MAX_CONTACT_ITEMS = 10;
 
 const DRAFT_KEY = '__draft_new_supplier';
 
@@ -131,6 +132,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
     if (!open || !isDirty) return;
     const timer = setTimeout(() => {
       const draft = {
+        _v: 2,
         accountName, supplierType, cooperationTypes,
         contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
         contactItemEntries, savedAt: new Date().toISOString(),
@@ -148,6 +150,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
         const d = JSON.parse(saved);
+        if (d._v !== 2) { localStorage.removeItem(DRAFT_KEY); return; }
         if (d.savedAt) setDraftSavedAt(d.savedAt);
       }
     } catch {}
@@ -245,6 +248,10 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   };
 
   const addContactItem = () => {
+    if (contactItemEntries.length >= MAX_CONTACT_ITEMS) {
+      toast.warning(`最多添加 ${MAX_CONTACT_ITEMS} 条联系方式`);
+      return;
+    }
     setContactItemEntries((prev) => [...prev, { type: '', value: '' }]);
   };
 
@@ -273,11 +280,17 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
     setSaving(true);
     try {
       const manualLinks: Record<string, string> = {};
-      linkEntries.forEach((entry) => {
+      for (const entry of linkEntries) {
         if (entry.platform && entry.url) {
-          manualLinks[entry.platform] = entry.url;
+          const url = entry.url.trim();
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            toast.error(`链接格式不正确（需以 http:// 或 https:// 开头）`);
+            setSaving(false);
+            return;
+          }
+          manualLinks[entry.platform] = url;
         }
-      });
+      }
 
       const priceItems: IPriceItem[] = priceItemEntries
         .filter((e) => e.cooperationType && e.unitPrice)

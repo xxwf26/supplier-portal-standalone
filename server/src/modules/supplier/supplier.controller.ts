@@ -19,6 +19,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
 @Controller('/api/suppliers')
+@UseGuards(JwtAuthGuard)
 export class SupplierController {
   constructor(private readonly supplierService: SupplierService) {}
 

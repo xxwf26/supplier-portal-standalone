@@ -148,6 +148,7 @@ __decorate([
 ], SupplierController.prototype, "delete", null);
 exports.SupplierController = SupplierController = __decorate([
     (0, common_1.Controller)('/api/suppliers'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [supplier_service_1.SupplierService])
 ], SupplierController);
 //# sourceMappingURL=supplier.controller.js.map

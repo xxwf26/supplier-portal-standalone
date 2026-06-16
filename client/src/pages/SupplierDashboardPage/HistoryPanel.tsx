@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { auditApi, IAuditLog, IBatch, ISnapshot } from '@/api/audit';
+import { useAuth } from '@/lib/auth';
 import {
   RotateCcwIcon, CameraIcon, RefreshCwIcon,
   ChevronLeftIcon, ChevronRightIcon, AlertTriangleIcon,
@@ -232,7 +233,7 @@ function LogCard({ log, onRollbackSuccess }: { log: IAuditLog; onRollbackSuccess
               className={cn('h-6 px-2 text-[11px] gap-1 opacity-0 group-hover:opacity-100 transition-opacity', confirmRollback && 'opacity-100')}
               disabled={rolling}
               onClick={handleRollback}
-              onBlur={() => setTimeout(() => setConfirmRollback(false), 200)}
+              onBlur={() => setTimeout(() => setConfirmRollback(false), 5000)}
             >
               <RotateCcwIcon className={cn('w-3 h-3', rolling && 'animate-spin')} />
               {rolling ? '…' : confirmRollback ? '执行' : '撤回'}
@@ -364,7 +365,7 @@ function BatchesTab({ onDataChange }: { onDataChange?: () => void }) {
           <div className="flex items-center gap-2">
             {confirm === b.import_batch_id && (
               <span className="text-xs text-orange-600 flex items-center gap-1">
-                <AlertTriangleIcon className="w-3.5 h-3.5" /> 再次点击确认撤销
+                <AlertTriangleIcon className="w-3.5 h-3.5" /> 将删除 {b.count} 条数据，再次点击确认
               </span>
             )}
             <Button
@@ -463,6 +464,8 @@ export default function HistoryPanel({
   onClose: () => void;
   onDataChange?: () => void;
 }) {
+  const { isAdmin } = useAuth();
+  if (!isAdmin) return null;
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[88vh] flex flex-col">

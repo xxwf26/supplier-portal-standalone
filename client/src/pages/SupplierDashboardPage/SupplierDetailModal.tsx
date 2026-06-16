@@ -114,6 +114,7 @@ interface SupplierDetailModalProps {
 }
 
 const MAX_PRICE_ITEMS = 5;
+const MAX_CONTACT_ITEMS = 10;
 
 // ── 全屏灯箱 ────────────────────────────────────────────
 function LightboxOverlay({
@@ -301,6 +302,7 @@ export default function SupplierDetailModal({
     const timer = setTimeout(() => {
       try {
         localStorage.setItem(draftKey, JSON.stringify({
+          _v: 2,
           artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
           cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
           styleTags, contactInfoText, supplierTypeVal, entityTypeVal,
@@ -320,6 +322,7 @@ export default function SupplierDetailModal({
       const saved = localStorage.getItem(draftKey);
       if (saved) {
         const d = JSON.parse(saved);
+        if (d._v !== 2) { localStorage.removeItem(draftKey); return; }
         if (d.savedAt) setDraftSavedAt(d.savedAt);
       }
     } catch {}
@@ -415,6 +418,7 @@ export default function SupplierDetailModal({
       setArtworkUrls((prev) => [...prev, data.download_url]);
     } catch (err) {
       logger.error('Upload failed:', String(err));
+      toast.error('图片上传失败，请重试');
     } finally {
       setUploading(false);
     }
@@ -464,6 +468,10 @@ export default function SupplierDetailModal({
   };
 
   const addContactItem = () => {
+    if (contactItemEntries.length >= MAX_CONTACT_ITEMS) {
+      toast.warning(`最多添加 ${MAX_CONTACT_ITEMS} 条联系方式`);
+      return;
+    }
     setContactItemEntries((prev) => [...prev, { type: '', value: '' }]);
   };
 
@@ -500,7 +508,13 @@ export default function SupplierDetailModal({
       const manualLinksRecord: Record<string, string> = {};
       manualLinkEntries.forEach((entry) => {
         if (entry.platform && entry.url) {
-          manualLinksRecord[entry.platform] = entry.url;
+          const url = entry.url.trim();
+          if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+            toast.error(`链接格式不正确：${url}（需以 http:// 或 https:// 开头）`);
+            setSaving(false);
+            return;
+          }
+          manualLinksRecord[entry.platform] = url;
         }
       });
 
@@ -536,6 +550,7 @@ export default function SupplierDetailModal({
       onSave();
     } catch (err) {
       logger.error('Save failed:', String(err));
+      toast.error('保存失败，请重试');
     } finally {
       setSaving(false);
     }
@@ -548,12 +563,11 @@ export default function SupplierDetailModal({
     clearDraft();
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const handleDelete = async () => {
     if (!supplier) return;
-    if (!confirmingDelete) {
-      setConfirmingDelete(true);
-      return;
-    }
+    setShowDeleteConfirm(false);
     try {
       await supplierApi.delete(supplier.id);
       toast.success('已删除供应商');
@@ -1254,14 +1268,11 @@ export default function SupplierDetailModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  className={cn(
-                    'text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700',
-                    confirmingDelete && 'bg-red-600 text-white border-red-600 hover:bg-red-700 hover:text-white'
-                  )}
-                  onClick={handleDelete}
+                  className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => setShowDeleteConfirm(true)}
                 >
                   <Trash2Icon className="w-3.5 h-3.5 mr-1" />
-                  {confirmingDelete ? '确认删除' : '删除'}
+                  删除
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={handleCancel}>
@@ -1296,6 +1307,27 @@ export default function SupplierDetailModal({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    {/* 删除确认 AlertDialog */}
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertTitle>确认删除？</AlertTitle>
+          <AlertDialogDescription>
+            将永久删除「{supplier?.accountName}」，此操作可通过变更记录撤回。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive hover:bg-destructive/90"
+            onClick={handleDelete}
+          >
+            确认删除
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     {/* 全屏灯箱 */}
     {lightboxIndex !== null && artworkUrls.length > 0 && (
       <LightboxOverlay

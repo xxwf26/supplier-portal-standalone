@@ -255,7 +255,25 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
     setImporting(true);
     try {
       const items = rawData.map((row) => mapRow(row, columnMaps));
-      const validItems = items.filter((item) => item.accountName);
+      const validItems = items.filter((item) => {
+        if (!item.accountName) return false;
+        // M-4：字段级校验
+        const name = String(item.accountName).trim();
+        if (name.length > 200) { item.accountName = name.slice(0, 200); }
+        if (item.rating !== undefined && item.rating !== null) {
+          const r = Number(item.rating);
+          if (isNaN(r) || r < 1 || r > 5) item.rating = undefined;
+        }
+        if (item.cooperationCount !== undefined) {
+          const c = Number(item.cooperationCount);
+          item.cooperationCount = isNaN(c) ? 0 : Math.max(0, Math.min(9999, c));
+        }
+        return true;
+      });
+      const invalidCount = items.length - validItems.length;
+      if (invalidCount > 0) {
+        toast.warning(`跳过 ${invalidCount} 条无效数据（名称为空）`);
+      }
 
       if (validItems.length === 0) {
         toast.error('没有有效数据可导入');
@@ -290,8 +308,13 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
   const mappedFields = columnMaps.map((m) => m.field);
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent aria-describedby={undefined} className="max-w-3xl w-full max-h-[85vh] p-0 overflow-hidden flex flex-col">
+    <Dialog open={open} onOpenChange={importing ? undefined : handleClose}>
+      <DialogContent
+        aria-describedby={undefined}
+        className="max-w-3xl w-full max-h-[85vh] p-0 overflow-hidden flex flex-col"
+        onPointerDownOutside={(e) => importing && e.preventDefault()}
+        onEscapeKeyDown={(e) => importing && e.preventDefault()}
+      >
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
             <FileSpreadsheetIcon className="w-5 h-5 text-primary" />
@@ -343,6 +366,11 @@ export default function ExcelImportModal({ open, onClose, onImportComplete }: Ex
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       共 {rawData.length} 条数据，已识别 {columnMaps.length} 个字段
+                      {rawData.map(r => mapRow(r, columnMaps)).filter(i => !i.accountName).length > 0 && (
+                        <span className="text-orange-500 ml-2">
+                          ⚠ {rawData.map(r => mapRow(r, columnMaps)).filter(i => !i.accountName).length} 条名称为空将被跳过
+                        </span>
+                      )}
                     </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => { setPhase('upload'); setRawData([]); setColumnMaps([]); }}>

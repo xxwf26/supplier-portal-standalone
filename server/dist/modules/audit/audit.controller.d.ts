@@ -2,7 +2,7 @@ import { AuditService } from './audit.service';
 export declare class AuditController {
     private readonly auditService;
     constructor(auditService: AuditService);
-    /** 变更记录分页列表 */
+    /** 变更记录分页列表（管理员） */
     getLogs(page?: string, limit?: string, operation?: string): Promise<{
         list: {
             id: number;
@@ -19,7 +19,7 @@ export declare class AuditController {
         page: number;
         limit: number;
     }>;
-    /** 导入批次列表 */
+    /** 导入批次列表（管理员） */
     getBatches(): Promise<{
         import_batch_id: string;
         count: number;
@@ -34,7 +34,7 @@ export declare class AuditController {
         deleted: number;
         message: string;
     }>;
-    /** 快照列表 */
+    /** 快照列表（管理员） */
     listSnapshots(): {
         filename: string;
         size: number;

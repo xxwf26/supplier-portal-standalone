@@ -23,11 +23,11 @@ let AuditController = class AuditController {
     constructor(auditService) {
         this.auditService = auditService;
     }
-    /** 变更记录分页列表 */
+    /** 变更记录分页列表（管理员） */
     getLogs(page = '1', limit = '50', operation) {
         return this.auditService.getLogs(Number(page), Number(limit), operation);
     }
-    /** 导入批次列表 */
+    /** 导入批次列表（管理员） */
     getBatches() {
         return this.auditService.getBatches();
     }
@@ -39,7 +39,7 @@ let AuditController = class AuditController {
     rollbackBatch(batchId, req) {
         return this.auditService.rollbackBatch(batchId, req.user?.username ?? 'admin');
     }
-    /** 快照列表 */
+    /** 快照列表（管理员） */
     listSnapshots() {
         return this.auditService.listSnapshots();
     }
@@ -51,6 +51,8 @@ let AuditController = class AuditController {
 exports.AuditController = AuditController;
 __decorate([
     (0, common_1.Get)('logs'),
+    (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin'),
     __param(0, (0, common_1.Query)('page')),
     __param(1, (0, common_1.Query)('limit')),
     __param(2, (0, common_1.Query)('operation')),
@@ -60,6 +62,8 @@ __decorate([
 ], AuditController.prototype, "getLogs", null);
 __decorate([
     (0, common_1.Get)('batches'),
+    (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
@@ -86,6 +90,8 @@ __decorate([
 ], AuditController.prototype, "rollbackBatch", null);
 __decorate([
     (0, common_1.Get)('snapshots'),
+    (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)

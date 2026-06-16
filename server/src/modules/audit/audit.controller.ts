@@ -9,8 +9,10 @@ import { Roles } from '../auth/roles.decorator';
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
-  /** 变更记录分页列表 */
+  /** 变更记录分页列表（管理员） */
   @Get('logs')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   getLogs(
     @Query('page') page = '1',
     @Query('limit') limit = '50',
@@ -19,8 +21,10 @@ export class AuditController {
     return this.auditService.getLogs(Number(page), Number(limit), operation);
   }
 
-  /** 导入批次列表 */
+  /** 导入批次列表（管理员） */
   @Get('batches')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   getBatches() {
     return this.auditService.getBatches();
   }
@@ -41,8 +45,10 @@ export class AuditController {
     return this.auditService.rollbackBatch(batchId, req.user?.username ?? 'admin');
   }
 
-  /** 快照列表 */
+  /** 快照列表（管理员） */
   @Get('snapshots')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   listSnapshots() {
     return this.auditService.listSnapshots();
   }

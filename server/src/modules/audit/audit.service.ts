@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { count, desc, eq, sql } from 'drizzle-orm';
+import { count, desc, eq, gt, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
 import { auditLog, suppliers } from '../../database/schema';
 import { exec } from 'child_process';
@@ -147,12 +147,22 @@ export class AuditService {
       }
       case 'UPDATE': {
         if (recordId && entry.oldData) {
+          // 检查此日志之后是否有更新操作（版本冲突提示）
+          const allRecordLogs = await this.db
+            .select({ id: auditLog.id, operation: auditLog.operation })
+            .from(auditLog)
+            .where(eq(auditLog.recordId, recordId))
+            .orderBy(desc(auditLog.id));
+          const laterOps = allRecordLogs.filter(r => r.id > logId && ['UPDATE', 'DELETE'].includes(r.operation));
+          if (laterOps.length > 0) {
+            this.logger.warn(`Rollback log ${logId}: ${laterOps.length} later update(s) will be overwritten`);
+          }
+
           const old = entry.oldData as Record<string, unknown>;
           const skipFields = new Set(['id', 'createdAt', 'updatedAt', 'importBatchId', 'importSource']);
           const restoreData: Record<string, unknown> = { updatedAt: new Date() };
           for (const [k, v] of Object.entries(old)) {
             if (skipFields.has(k)) continue;
-            // 日期字段从 ISO 字符串转为 Date 对象
             if (k === 'contractDeadline') {
               restoreData[k] = parseDateField(v);
             } else {
@@ -160,6 +170,13 @@ export class AuditService {
             }
           }
           await this.db.update(suppliers).set(restoreData).where(eq(suppliers.id, recordId));
+
+          if (laterOps.length > 0) {
+            // 返回信息中带上警告
+            await this.log({ operation: 'LOG_ROLLBACK', recordId: recordId ?? undefined, batchId: String(logId), oldData: entry.newData, newData: entry.oldData, operatedBy });
+            this.logger.log(`Log ${logId} rolled back by ${operatedBy}`);
+            return { message: `撤回成功（注意：该记录在此操作后还有 ${laterOps.length} 次编辑已被覆盖）` };
+          }
         }
         break;
       }

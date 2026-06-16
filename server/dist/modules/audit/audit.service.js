@@ -136,13 +136,22 @@ let AuditService = AuditService_1 = class AuditService {
             }
             case 'UPDATE': {
                 if (recordId && entry.oldData) {
+                    // 检查此日志之后是否有更新操作（版本冲突提示）
+                    const allRecordLogs = await this.db
+                        .select({ id: schema_1.auditLog.id, operation: schema_1.auditLog.operation })
+                        .from(schema_1.auditLog)
+                        .where((0, drizzle_orm_1.eq)(schema_1.auditLog.recordId, recordId))
+                        .orderBy((0, drizzle_orm_1.desc)(schema_1.auditLog.id));
+                    const laterOps = allRecordLogs.filter(r => r.id > logId && ['UPDATE', 'DELETE'].includes(r.operation));
+                    if (laterOps.length > 0) {
+                        this.logger.warn(`Rollback log ${logId}: ${laterOps.length} later update(s) will be overwritten`);
+                    }
                     const old = entry.oldData;
                     const skipFields = new Set(['id', 'createdAt', 'updatedAt', 'importBatchId', 'importSource']);
                     const restoreData = { updatedAt: new Date() };
                     for (const [k, v] of Object.entries(old)) {
                         if (skipFields.has(k))
                             continue;
-                        // 日期字段从 ISO 字符串转为 Date 对象
                         if (k === 'contractDeadline') {
                             restoreData[k] = parseDateField(v);
                         }
@@ -151,6 +160,12 @@ let AuditService = AuditService_1 = class AuditService {
                         }
                     }
                     await this.db.update(schema_1.suppliers).set(restoreData).where((0, drizzle_orm_1.eq)(schema_1.suppliers.id, recordId));
+                    if (laterOps.length > 0) {
+                        // 返回信息中带上警告
+                        await this.log({ operation: 'LOG_ROLLBACK', recordId: recordId ?? undefined, batchId: String(logId), oldData: entry.newData, newData: entry.oldData, operatedBy });
+                        this.logger.log(`Log ${logId} rolled back by ${operatedBy}`);
+                        return { message: `撤回成功（注意：该记录在此操作后还有 ${laterOps.length} 次编辑已被覆盖）` };
+                    }
                 }
                 break;
             }

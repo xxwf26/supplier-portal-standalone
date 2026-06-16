@@ -154,7 +154,7 @@ let SupplierService = SupplierService_1 = class SupplierService {
         if (data.taxStatus !== undefined)
             updateData.taxStatus = data.taxStatus;
         if (data.contactInfo !== undefined)
-            updateData.contactInfo = data.contactInfo;
+            updateData.contactInfo = data.contactInfo ? data.contactInfo.slice(0, 500) : null;
         if (data.contactItems !== undefined)
             updateData.contactItems = data.contactItems;
         if (data.priceItems !== undefined)
@@ -165,6 +165,13 @@ let SupplierService = SupplierService_1 = class SupplierService {
             updateData.supplierType = data.supplierType;
         if (data.artworkUrls !== undefined)
             updateData.artworkUrls = data.artworkUrls;
+        // 数值范围校验
+        if (data.cooperationCount !== undefined) {
+            updateData.cooperationCount = Math.max(0, Math.min(9999, Number(data.cooperationCount) || 0));
+        }
+        if (data.rating !== undefined) {
+            updateData.rating = data.rating === null ? null : Math.max(1, Math.min(5, Number(data.rating)));
+        }
         await this.db.update(schema_1.suppliers).set(updateData).where((0, drizzle_orm_1.eq)(schema_1.suppliers.id, id));
         const updated = await this.findById(id);
         await this.auditService.log({
@@ -178,6 +185,8 @@ let SupplierService = SupplierService_1 = class SupplierService {
     }
     async delete(id, operatedBy = 'admin') {
         const existing = await this.findById(id);
+        if (!existing)
+            return false;
         await this.db.delete(schema_1.suppliers).where((0, drizzle_orm_1.eq)(schema_1.suppliers.id, id));
         await this.auditService.log({
             operation: 'DELETE',

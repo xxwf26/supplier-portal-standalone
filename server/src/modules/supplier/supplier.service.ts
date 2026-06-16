@@ -138,12 +138,19 @@ export class SupplierService {
     if (data.contractNo !== undefined) updateData.contractNo = data.contractNo;
     if (data.contractDeadline !== undefined) updateData.contractDeadline = data.contractDeadline ? new Date(data.contractDeadline) : null;
     if (data.taxStatus !== undefined) updateData.taxStatus = data.taxStatus;
-    if (data.contactInfo !== undefined) updateData.contactInfo = data.contactInfo;
+    if (data.contactInfo !== undefined) updateData.contactInfo = data.contactInfo ? data.contactInfo.slice(0, 500) : null;
     if (data.contactItems !== undefined) updateData.contactItems = data.contactItems;
     if (data.priceItems !== undefined) updateData.priceItems = data.priceItems;
     if (data.cooperationCategory !== undefined) updateData.cooperationCategory = data.cooperationCategory;
     if (data.supplierType !== undefined) updateData.supplierType = data.supplierType;
     if (data.artworkUrls !== undefined) updateData.artworkUrls = data.artworkUrls;
+    // 数值范围校验
+    if (data.cooperationCount !== undefined) {
+      updateData.cooperationCount = Math.max(0, Math.min(9999, Number(data.cooperationCount) || 0));
+    }
+    if (data.rating !== undefined) {
+      updateData.rating = data.rating === null ? null : Math.max(1, Math.min(5, Number(data.rating)));
+    }
 
     await this.db.update(suppliers).set(updateData).where(eq(suppliers.id, id));
     const updated = await this.findById(id);
@@ -161,6 +168,7 @@ export class SupplierService {
 
   async delete(id: string, operatedBy = 'admin'): Promise<boolean> {
     const existing = await this.findById(id);
+    if (!existing) return false;
     await this.db.delete(suppliers).where(eq(suppliers.id, id));
     await this.auditService.log({
       operation: 'DELETE',
