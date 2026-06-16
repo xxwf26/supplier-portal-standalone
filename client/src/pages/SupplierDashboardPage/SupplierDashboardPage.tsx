@@ -36,12 +36,6 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 const ExcelImportModal = lazy(() => import('./ExcelImportModal'));
 const NewSupplierModal = lazy(() => import('./NewSupplierModal'));
 
-function getInitialViewMode(): 'pc' | 'mobile' {
-  const saved = localStorage.getItem('__view_mode');
-  if (saved === 'pc' || saved === 'mobile') return saved;
-  return window.innerWidth < 768 ? 'mobile' : 'pc';
-}
-
 // 转换API数据到前端格式
 function processSupplier(raw: ISupplier): IProcessedSupplier {
   const type = inferSupplierType(raw.accountName || '', raw.supplierType);
@@ -140,7 +134,7 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
   };
 }
 
-export default function SupplierDashboardPage() {
+export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 'pc' | 'mobile' }) {
   const [selectedSupplier, setSelectedSupplier] = useState<IProcessedSupplier | null>(null);
   const [selectedRawSupplier, setSelectedRawSupplier] = useState<ISupplier | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -150,7 +144,6 @@ export default function SupplierDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [currentFilters, setCurrentFilters] = useState<IFilterState | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'pc' | 'mobile'>(getInitialViewMode);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
@@ -161,13 +154,6 @@ export default function SupplierDashboardPage() {
 
   const { isAdmin } = useAuth();
 
-  const toggleViewMode = useCallback(() => {
-    setViewMode(prev => {
-      const next = prev === 'pc' ? 'mobile' : 'pc';
-      localStorage.setItem('__view_mode', next);
-      return next;
-    });
-  }, []);
 
   const activeFilterCount = useMemo(() => {
     if (!currentFilters) return 0;
@@ -490,7 +476,7 @@ export default function SupplierDashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <HeaderSection viewMode={viewMode} onToggleViewMode={toggleViewMode} />
+      <HeaderSection viewMode={viewMode} />
 
       {/* PC 模式：侧边栏 + 主内容 */}
       {viewMode === 'pc' ? (
