@@ -282,15 +282,15 @@ export default function DuplicateCheckPanel({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent aria-describedby={undefined} className="max-w-3xl flex flex-col" style={{ height: '90vh' }}>
-        <DialogHeader>
+      <DialogContent aria-describedby={undefined} className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b border-border">
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangleIcon className="w-5 h-5 text-orange-500" />
             查重检测
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center justify-between px-1 shrink-0">
+        <div className="flex items-center justify-between px-6 py-3 shrink-0">
           <p className="text-xs text-muted-foreground">
             检测完全相同名称，以及含有≥2个连续相同字符的相似名称
           </p>
@@ -300,7 +300,7 @@ export default function DuplicateCheckPanel({
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto mt-2 pr-1">
+        <div className="flex-1 overflow-y-auto px-6 pb-6" style={{ minHeight: 0 }}>
           {!checked && !loading && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <AlertTriangleIcon className="w-10 h-10 mb-3 opacity-30" />
