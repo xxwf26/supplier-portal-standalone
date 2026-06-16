@@ -111,6 +111,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   const [saving, setSaving] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [similarSuppliers, setSimilarSuppliers] = useState<Array<{ id: string; names: string[]; reason: string }>>([]);
 
   const [accountName, setAccountName] = useState('');
   const [supplierType, setSupplierType] = useState('');
@@ -126,6 +127,31 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   const isDirty = accountName.trim() !== '' || supplierType !== '' || cooperationTypes.length > 0 ||
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
     priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0;
+
+  // 输入名称时检测相似画师（防抖 600ms）
+  useEffect(() => {
+    const name = accountName.trim();
+    if (name.length < 2) { setSimilarSuppliers([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const groups = await supplierApi.getDuplicates();
+        const matched = groups.filter(g =>
+          g.names.some(n => {
+            if (!n) return false;
+            // 与输入名称比较：检查是否有共同2字子串
+            for (let len = 2; len <= Math.min(name.length, 4); len++) {
+              for (let i = 0; i <= name.length - len; i++) {
+                if (n.includes(name.slice(i, i + len))) return true;
+              }
+            }
+            return false;
+          })
+        );
+        setSimilarSuppliers(matched);
+      } catch { /* ignore */ }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [accountName]);
 
   // 草稿自动保存（防抖 400ms）
   useEffect(() => {
@@ -368,6 +394,16 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
                   placeholder="输入名称"
                   className="text-sm"
                 />
+                {similarSuppliers.length > 0 && (
+                  <div className="mt-1.5 rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
+                    <p className="text-xs font-medium text-orange-700 mb-1">⚠ 发现相似画师，请校对是否重复：</p>
+                    {similarSuppliers.map((g, i) => (
+                      <p key={i} className="text-xs text-orange-600">
+                        {g.names.join('、')}（{g.reason}）
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>

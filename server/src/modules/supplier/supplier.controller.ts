@@ -50,6 +50,11 @@ export class SupplierController {
     return this.supplierService.getStatistics();
   }
 
+  @Get('duplicates')
+  async getDuplicates() {
+    return this.supplierService.getDuplicates();
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string) {
     const supplier = await this.supplierService.findById(id);
