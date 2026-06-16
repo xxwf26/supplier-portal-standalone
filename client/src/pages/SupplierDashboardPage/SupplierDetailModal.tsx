@@ -537,7 +537,7 @@ export default function SupplierDetailModal({
         contactItems,
         cooperationType: cooperationTypeVal.length > 0 ? cooperationTypeVal.join('、') : undefined,
         cooperationCount: cooperationCountVal ? Number(cooperationCountVal) : 0,
-        rating: ratingVal ? Number(ratingVal) : undefined,
+        rating: ratingVal ? Number(ratingVal) : null,
         subCategory: styleTags.join('、') || undefined,
         contactInfo: contactInfoText,
         supplierType: supplierTypeVal ? supplierTypeToBackend(supplierTypeVal) : undefined,
@@ -727,11 +727,15 @@ export default function SupplierDetailModal({
                 <div className="p-3 text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">评分</p>
                   {isEditing ? (
-                    <Select value={ratingVal} onValueChange={setRatingVal}>
+                    <Select
+                      value={ratingVal === '' ? 'none' : ratingVal}
+                      onValueChange={(v) => setRatingVal(v === 'none' ? '' : v)}
+                    >
                       <SelectTrigger className="h-7 text-xs px-2">
                         <SelectValue placeholder="评分" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">未评分</SelectItem>
                         <SelectItem value="1">1 分</SelectItem>
                         <SelectItem value="2">2 分</SelectItem>
                         <SelectItem value="3">3 分</SelectItem>
