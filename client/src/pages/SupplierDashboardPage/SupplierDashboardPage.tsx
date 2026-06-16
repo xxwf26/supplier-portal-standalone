@@ -649,6 +649,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
           open={isNewOpen}
           onClose={() => setIsNewOpen(false)}
           onCreated={fetchSuppliers}
+          suppliers={rawSuppliers}
         />
       </Suspense>
 

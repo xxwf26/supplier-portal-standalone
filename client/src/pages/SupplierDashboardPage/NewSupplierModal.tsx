@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import { supplierTypeToBackend } from '@/lib/filterConfig';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
+import { findSimilarNames } from '@/lib/supplierUtils';
 
 const PRICE_UNIT_OPTIONS = [
   { value: '元/张', label: '元/张' },
@@ -70,6 +71,7 @@ interface NewSupplierModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  suppliers?: Array<{ id: string; accountName: string }>;
 }
 
 const MAX_PRICE_ITEMS = 5;
@@ -85,7 +87,7 @@ function timeAgo(iso: string) {
   return `${Math.floor(m / 60)} 小时前`;
 }
 
-export default function NewSupplierModal({ open, onClose, onCreated }: NewSupplierModalProps) {
+export default function NewSupplierModal({ open, onClose, onCreated, suppliers = [] }: NewSupplierModalProps) {
   const filterConfig = useFilterOptions();
 
   // 动态选项
@@ -111,7 +113,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
   const [saving, setSaving] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
-  const [similarSuppliers, setSimilarSuppliers] = useState<Array<{ id: string; names: string[]; reason: string }>>([]);
+  const [similarSuppliers, setSimilarSuppliers] = useState<string[]>([]);
 
   const [accountName, setAccountName] = useState('');
   const [supplierType, setSupplierType] = useState('');
@@ -128,30 +130,18 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
     priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0;
 
-  // 输入名称时检测相似画师（防抖 600ms）
+  // 输入名称时实时检测相似画师（纯前端比对，无需 API，防抖 400ms）
   useEffect(() => {
     const name = accountName.trim();
     if (name.length < 2) { setSimilarSuppliers([]); return; }
-    const timer = setTimeout(async () => {
-      try {
-        const groups = await supplierApi.getDuplicates();
-        const matched = groups.filter(g =>
-          g.names.some(n => {
-            if (!n) return false;
-            // 与输入名称比较：检查是否有共同2字子串
-            for (let len = 2; len <= Math.min(name.length, 4); len++) {
-              for (let i = 0; i <= name.length - len; i++) {
-                if (n.includes(name.slice(i, i + len))) return true;
-              }
-            }
-            return false;
-          })
-        );
-        setSimilarSuppliers(matched);
-      } catch { /* ignore */ }
-    }, 600);
+    const timer = setTimeout(() => {
+      const existingNames = suppliers.map(s => s.accountName).filter(Boolean);
+      const matched = findSimilarNames(name, existingNames);
+      // 排除与自己完全一致的（新建时输入的名字本身就是相似的起点）
+      setSimilarSuppliers(matched.filter(n => n !== name));
+    }, 400);
     return () => clearTimeout(timer);
-  }, [accountName]);
+  }, [accountName, suppliers]);
 
   // 草稿自动保存（防抖 400ms）
   useEffect(() => {
@@ -396,11 +386,9 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
                 />
                 {similarSuppliers.length > 0 && (
                   <div className="mt-1.5 rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
-                    <p className="text-xs font-medium text-orange-700 mb-1">⚠ 发现相似画师，请校对是否重复：</p>
-                    {similarSuppliers.map((g, i) => (
-                      <p key={i} className="text-xs text-orange-600">
-                        {g.names.join('、')}（{g.reason}）
-                      </p>
+                    <p className="text-xs font-medium text-orange-700 mb-1">⚠ 库中存在相似画师，请确认是否重复：</p>
+                    {similarSuppliers.map((name, i) => (
+                      <p key={i} className="text-xs text-orange-600">「{name}」</p>
                     ))}
                   </div>
                 )}
