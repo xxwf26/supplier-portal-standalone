@@ -175,7 +175,7 @@ export default function SupplierDashboardPage() {
       currentFilters.styles.length +
       currentFilters.status.length +
       currentFilters.projects.length +
-      (currentFilters.priceRange[0] !== 500 || currentFilters.priceRange[1] !== 10000 ? 1 : 0)
+      (currentFilters.priceRange[0] !== 0 || currentFilters.priceRange[1] !== 10000 ? 1 : 0)
     );
   }, [currentFilters]);
 
@@ -220,12 +220,15 @@ export default function SupplierDashboardPage() {
       );
     }
 
-    result = result.filter(
-      (s) =>
-        (s.priceRange[0] === 0 && s.priceRange[1] === 0) || // 无报价数据不过滤
-        (s.priceRange[0] >= currentFilters.priceRange[0] &&
-         s.priceRange[1] <= currentFilters.priceRange[1])
-    );
+    // 价格过滤：仅当用户主动调整滑块（偏离默认 [0,10000]）时才生效
+    if (currentFilters.priceRange[0] > 0 || currentFilters.priceRange[1] < 10000) {
+      result = result.filter(
+        (s) =>
+          (s.priceRange[0] === 0 && s.priceRange[1] === 0) || // 无报价数据不过滤
+          (s.priceRange[0] >= currentFilters.priceRange[0] &&
+           s.priceRange[1] <= currentFilters.priceRange[1])
+      );
+    }
 
     return result;
   }, [processedSuppliers, currentFilters]);
@@ -481,7 +484,7 @@ export default function SupplierDashboardPage() {
           <FilterPanelSection key={filterResetKey} onFilterChange={handleFilterChange} />
           <main className="flex-1 p-4 md:p-6">
             {/* 吸顶工具条：搜索 + 排序 + 计数 + 操作 */}
-            <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-3 mb-4 bg-background/95 backdrop-blur border-b border-border">
+            <div className="sticky top-[44px] z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-3 mb-4 bg-background/95 backdrop-blur border-b border-border">
               <div className="flex items-center gap-2 flex-wrap">
                 {searchAndSort}
                 <p className="text-sm text-muted-foreground whitespace-nowrap ml-1">
@@ -529,7 +532,7 @@ export default function SupplierDashboardPage() {
         <>
           <main className="w-full p-3 pb-24">
             {/* 吸顶工具条 */}
-            <div className="sticky top-0 z-30 -mx-3 px-3 py-2 mb-3 bg-background/95 backdrop-blur border-b border-border space-y-2">
+            <div className="sticky top-[44px] z-30 -mx-3 px-3 py-2 mb-3 bg-background/95 backdrop-blur border-b border-border space-y-2">
               <div className="flex items-center gap-2">
                 {searchAndSort}
               </div>
@@ -577,7 +580,7 @@ export default function SupplierDashboardPage() {
           {/* 浮动筛选按钮 */}
           <button
             onClick={() => setIsMobileFilterOpen(true)}
-            className={`fixed ${selectedIds.size > 0 ? 'bottom-20' : 'bottom-6'} left-4 z-40 flex items-center gap-2 bg-primary text-white rounded-full px-4 py-2.5 shadow-lg active:scale-95 transition-all duration-200`}
+            className={`fixed ${selectedIds.size > 0 ? 'bottom-24' : 'bottom-6'} left-4 z-40 flex items-center gap-2 bg-primary text-white rounded-full px-4 py-2.5 shadow-lg active:scale-95 transition-all duration-200`}
           >
             <FilterIcon className="w-4 h-4" />
             <span className="text-sm font-medium">筛选</span>
@@ -596,6 +599,7 @@ export default function SupplierDashboardPage() {
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-4 py-2">
                 <FilterPanelSection
+                  key={filterResetKey}
                   onFilterChange={handleFilterChange}
                   mode="sheet"
                 />
