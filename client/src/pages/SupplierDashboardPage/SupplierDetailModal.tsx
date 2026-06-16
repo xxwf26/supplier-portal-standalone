@@ -259,6 +259,7 @@ export default function SupplierDetailModal({
   const [statusVal, setStatusVal] = useState('');
   const [styleTags, setStyleTags] = useState<string[]>([]);
   const [contactInfoText, setContactInfoText] = useState('');
+  const [nameVal, setNameVal] = useState('');
   const [supplierTypeVal, setSupplierTypeVal] = useState('');
   const [entityTypeVal, setEntityTypeVal] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
@@ -290,6 +291,7 @@ export default function SupplierDetailModal({
       if (d.statusVal !== undefined) setStatusVal(d.statusVal);
       if (d.styleTags) setStyleTags(d.styleTags);
       if (d.contactInfoText !== undefined) setContactInfoText(d.contactInfoText);
+      if (d.nameVal !== undefined) setNameVal(d.nameVal);
       if (d.supplierTypeVal !== undefined) setSupplierTypeVal(d.supplierTypeVal);
       if (d.entityTypeVal !== undefined) setEntityTypeVal(d.entityTypeVal);
     } catch {}
@@ -305,7 +307,7 @@ export default function SupplierDetailModal({
           _v: 2,
           artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
           cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
-          styleTags, contactInfoText, supplierTypeVal, entityTypeVal,
+          styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal,
           savedAt: new Date().toISOString(),
         }));
       } catch {}
@@ -313,7 +315,7 @@ export default function SupplierDetailModal({
     return () => clearTimeout(timer);
   }, [isEditing, draftKey, artworkUrls, manualLinkEntries, priceItemEntries,
     contactItemEntries, cooperationTypeVal, cooperationCountVal, ratingVal,
-    statusVal, styleTags, contactInfoText, supplierTypeVal, entityTypeVal]);
+    statusVal, styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal]);
 
   // 进入编辑时检查草稿
   useEffect(() => {
@@ -371,6 +373,7 @@ export default function SupplierDetailModal({
       setRatingVal(supplier.rating != null ? String(supplier.rating) : '');
       setStatusVal(getStatusFromData(supplier));
       setSupplierTypeVal(supplier.supplierType || '');
+      setNameVal(supplier.accountName || '');
     setStyleTags(
       supplier.subCategory
         ? supplier.subCategory.split(/[\/、，]/).map((s) => s.trim()).filter(Boolean)
@@ -503,6 +506,10 @@ export default function SupplierDetailModal({
 
   const handleSave = async () => {
     if (!supplier) return;
+    if (!nameVal.trim()) {
+      toast.error('画师名称不能为空');
+      return;
+    }
     setSaving(true);
     try {
       const manualLinksRecord: Record<string, string> = {};
@@ -531,6 +538,7 @@ export default function SupplierDetailModal({
         .map((e) => ({ type: e.type, value: e.value.trim() }));
 
       await supplierApi.update(supplier.id, {
+        accountName: nameVal.trim(),
         artworkUrls,
         manualLinks: manualLinksRecord,
         priceItems,
@@ -620,9 +628,22 @@ export default function SupplierDetailModal({
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <DialogTitle className="text-xl font-bold text-foreground">
-                  {supplier.accountName}
-                </DialogTitle>
+                {isEditing ? (
+                  <>
+                    <DialogTitle className="sr-only">编辑画师：{supplier.accountName}</DialogTitle>
+                    <Input
+                      value={nameVal}
+                      onChange={(e) => setNameVal(e.target.value)}
+                      placeholder="画师名称"
+                      maxLength={255}
+                      className="h-9 text-xl font-bold flex-1 min-w-0"
+                    />
+                  </>
+                ) : (
+                  <DialogTitle className="text-xl font-bold text-foreground">
+                    {supplier.accountName}
+                  </DialogTitle>
+                )}
                 {supplier.cooperationCategory && (
                   <Badge variant="outline" className="text-xs bg-muted/50">
                     {supplier.cooperationCategory}
