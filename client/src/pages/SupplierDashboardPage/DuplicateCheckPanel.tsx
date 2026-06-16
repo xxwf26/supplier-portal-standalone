@@ -300,7 +300,7 @@ export default function DuplicateCheckPanel({
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 mt-2 pr-1">
+        <ScrollArea className="flex-1 min-h-0 mt-2 pr-1">
           {!checked && !loading && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <AlertTriangleIcon className="w-10 h-10 mb-3 opacity-30" />
