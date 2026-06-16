@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
 import FilterPanelSection, { IFilterState, STORAGE_KEY } from './FilterPanelSection';
@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import HistoryPanel from './HistoryPanel';
+import DuplicateCheckPanel from './DuplicateCheckPanel';
 import { inferSupplierType } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
 
@@ -152,6 +153,7 @@ export default function SupplierDashboardPage() {
   const [viewMode, setViewMode] = useState<'pc' | 'mobile'>(getInitialViewMode);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('default');
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -509,6 +511,10 @@ export default function SupplierDashboardPage() {
                         <HistoryIcon className="w-3.5 h-3.5" />
                         历史
                       </Button>
+                      <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setIsDuplicateOpen(true)}>
+                        <ScanSearchIcon className="w-3.5 h-3.5" />
+                        查重
+                      </Button>
                       <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsImportOpen(true)}>
                         <UploadIcon className="w-3.5 h-3.5" />
                         导入 Excel
@@ -558,6 +564,10 @@ export default function SupplierDashboardPage() {
                       <Button variant="ghost" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsHistoryOpen(true)}>
                         <HistoryIcon className="w-3 h-3" />
                         历史
+                      </Button>
+                      <Button variant="ghost" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsDuplicateOpen(true)}>
+                        <ScanSearchIcon className="w-3 h-3" />
+                        查重
                       </Button>
                       <Button variant="outline" size="sm" className="gap-1 h-7 px-2 text-xs" onClick={() => setIsImportOpen(true)}>
                         <UploadIcon className="w-3 h-3" />
@@ -736,6 +746,7 @@ export default function SupplierDashboardPage() {
       </AnimatePresence>
 
       <HistoryPanel open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onDataChange={fetchSuppliers} />
+      <DuplicateCheckPanel open={isDuplicateOpen} onClose={() => setIsDuplicateOpen(false)} onDeleted={fetchSuppliers} />
     </div>
   );
 }

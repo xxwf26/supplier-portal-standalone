@@ -231,6 +231,77 @@ export class SupplierService {
     return { successCount, failCount, errors };
   }
 
+  /** 提取字符串中所有长度>=2的连续子串（用于模糊匹配） */
+  private getNgrams(str: string, minLen = 2): Set<string> {
+    const s = str.replace(/[\s（）()【】\[\]「」『』""'']/g, ''); // 去除括号空格
+    const grams = new Set<string>();
+    for (let len = minLen; len <= Math.min(s.length, 4); len++) {
+      for (let i = 0; i <= s.length - len; i++) {
+        grams.add(s.slice(i, i + len));
+      }
+    }
+    return grams;
+  }
+
+  /** 查找库内重复/相似画师 */
+  async getDuplicates(): Promise<Array<{ ids: string[]; names: string[]; reason: string }>> {
+    const all = await this.db.select({
+      id: suppliers.id,
+      accountName: suppliers.accountName,
+    }).from(suppliers);
+
+    const groups: Map<string, typeof all> = new Map();
+
+    // 先做精确去重（完全一致）
+    const nameMap = new Map<string, typeof all[0][]>();
+    for (const s of all) {
+      const key = (s.accountName || '').trim().toLowerCase();
+      if (!nameMap.has(key)) nameMap.set(key, []);
+      nameMap.get(key)!.push(s);
+    }
+
+    const result: Array<{ ids: string[]; names: string[]; reason: string }> = [];
+
+    // 1. 完全重复
+    for (const [, group] of nameMap) {
+      if (group.length >= 2) {
+        result.push({
+          ids: group.map(s => s.id),
+          names: group.map(s => s.accountName || ''),
+          reason: '名称完全相同',
+        });
+      }
+    }
+
+    // 2. 共享2+字连续片段（模糊相似）
+    const seen = new Set<string>();
+    for (let i = 0; i < all.length; i++) {
+      for (let j = i + 1; j < all.length; j++) {
+        const a = all[i], b = all[j];
+        const pairKey = [a.id, b.id].sort().join('|');
+        if (seen.has(pairKey)) continue;
+
+        const gramsA = this.getNgrams(a.accountName || '');
+        const gramsB = this.getNgrams(b.accountName || '');
+        const common: string[] = [];
+        for (const g of gramsA) {
+          if (gramsB.has(g)) common.push(g);
+        }
+
+        if (common.length > 0) {
+          seen.add(pairKey);
+          result.push({
+            ids: [a.id, b.id],
+            names: [a.accountName || '', b.accountName || ''],
+            reason: `含相同片段：「${common.slice(0, 3).join('」「')}」`,
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
   async getStatistics() {
     const all = await this.db.select().from(suppliers);
 

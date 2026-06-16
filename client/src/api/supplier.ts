@@ -41,6 +41,11 @@ export const supplierApi = {
     return res.data;
   },
 
+  getDuplicates: async (): Promise<Array<{ ids: string[]; names: string[]; reason: string }>> => {
+    const res = await axiosForBackend({ url: '/api/suppliers/duplicates', method: 'GET' });
+    return res.data;
+  },
+
   batchCreate: async (items: Partial<ISupplier>[]): Promise<IBatchCreateResponse> => {
     const res = await axiosForBackend({ url: '/api/suppliers/batch', method: 'POST', data: { items } });
     return res.data;
