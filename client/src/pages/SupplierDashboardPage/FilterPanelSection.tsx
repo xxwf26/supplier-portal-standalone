@@ -42,7 +42,7 @@ export default function FilterPanelSection({
     types: [],
     cooperationTypes: [],
     styles: [],
-    priceRange: [500, 10000],
+    priceRange: [0, 10000],
     status: [],
     projects: [],
     keyword: '',
@@ -53,6 +53,10 @@ export default function FilterPanelSection({
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        // 迁移：旧默认值 [500,10000] → [0,10000]，不应视为用户主动设置
+        if (parsed.priceRange?.[0] === 500 && parsed.priceRange?.[1] === 10000) {
+          parsed.priceRange = [0, 10000];
+        }
         setFilters(prev => ({ ...prev, ...parsed }));
       }
     } catch { /* ignore */ }
@@ -76,12 +80,12 @@ export default function FilterPanelSection({
   };
 
   const clearFilters = () => {
-    setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [500, 10000], status: [], projects: [], keyword: '' });
+    setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [0, 10000], status: [], projects: [], keyword: '' });
   };
 
   const hasActiveFilters = filters.types.length > 0 || filters.cooperationTypes.length > 0 ||
     filters.styles.length > 0 || filters.status.length > 0 || filters.projects.length > 0 ||
-    filters.keyword !== '' || filters.priceRange[0] !== 500 || filters.priceRange[1] !== 10000;
+    filters.keyword !== '' || filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000;
 
   const activeFilterCount =
     filters.types.length +
@@ -90,7 +94,7 @@ export default function FilterPanelSection({
     filters.status.length +
     filters.projects.length +
     (filters.keyword !== '' ? 1 : 0) +
-    (filters.priceRange[0] !== 500 || filters.priceRange[1] !== 10000 ? 1 : 0);
+    (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000 ? 1 : 0);
 
   const content = (
     <>
@@ -168,7 +172,7 @@ export default function FilterPanelSection({
       <div className="mb-6">
         <label className="text-xs font-medium text-muted-foreground mb-2 block">报价区间</label>
         <div className="px-1">
-          <Slider value={filters.priceRange} onValueChange={handlePriceChange} min={500} max={10000} step={100} className="mb-3" />
+          <Slider value={filters.priceRange} onValueChange={handlePriceChange} min={0} max={10000} step={100} className="mb-3" />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{filters.priceRange[0]}元</span><span>{filters.priceRange[1]}元</span>
           </div>
