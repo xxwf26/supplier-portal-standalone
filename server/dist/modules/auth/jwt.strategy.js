@@ -16,10 +16,14 @@ const config_1 = require("@nestjs/config");
 const passport_jwt_1 = require("passport-jwt");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor(config) {
+        const secret = config.get('JWT_SECRET');
+        if (!secret) {
+            throw new Error('环境变量 JWT_SECRET 未配置，拒绝以默认密钥启动');
+        }
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: config.get('JWT_SECRET', 'supplier-portal-secret-key-2024'),
+            secretOrKey: secret,
         });
     }
     async validate(payload) {

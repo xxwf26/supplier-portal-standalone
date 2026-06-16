@@ -74,16 +74,25 @@ export class SupplierService {
     return result.length > 0 ? this.mapToISupplier(result[0]) : null;
   }
 
-  async create(data: ICreateSupplierDto, operatedBy = 'admin'): Promise<ISupplier> {
+  async create(
+    data: ICreateSupplierDto,
+    operatedBy = 'admin',
+    options: { importSource?: string; importBatchId?: string } = {},
+  ): Promise<ISupplier> {
+    // 主键先在应用层生成，避免插入后用 createdAt DESC LIMIT 1 取回时
+    // 在同秒并发 / 批量导入场景下取错记录
+    const id = crypto.randomUUID();
+
     await this.db.insert(suppliers).values({
+      id,
       accountName: data.accountName,
       socialLinks: data.socialLinks || {},
       subCategory: data.subCategory || null,
       cooperationType: data.cooperationType || null,
       priceRange: data.priceRange || null,
       priceItems: data.priceItems || [],
-      cooperationCount: data.cooperationCount || 0,
-      rating: data.rating || null,
+      cooperationCount: this.clampCount(data.cooperationCount),
+      rating: this.clampRating(data.rating),
       riskStatus: data.riskStatus || '暂无',
       isInStock: data.isInStock ?? true,
       entityType: data.entityType || null,
@@ -96,20 +105,37 @@ export class SupplierService {
       contactItems: data.contactItems || [],
       cooperationCategory: data.cooperationCategory || null,
       supplierType: data.supplierType || null,
-      importSource: 'manual',
+      importSource: options.importSource || 'manual',
+      importBatchId: options.importBatchId || null,
     });
 
-    const all = await this.db.select().from(suppliers).orderBy(sql`${suppliers.createdAt} DESC`).limit(1);
-    const created = this.mapToISupplier(all[0]);
+    const created = await this.findById(id);
+    if (!created) {
+      throw new Error('创建后未能读取到新记录');
+    }
 
     await this.auditService.log({
       operation: 'INSERT',
       recordId: created.id,
+      batchId: options.importBatchId,
       newData: created,
       operatedBy,
     });
 
     return created;
+  }
+
+  /** 合作频次范围校验：0 ~ 9999 */
+  private clampCount(value: unknown): number {
+    return Math.max(0, Math.min(9999, Number(value) || 0));
+  }
+
+  /** 评分范围校验：1 ~ 5，空值保持 null */
+  private clampRating(value: unknown): number | null {
+    if (value === undefined || value === null || value === '') return null;
+    const n = Number(value);
+    if (Number.isNaN(n)) return null;
+    return Math.max(1, Math.min(5, n));
   }
 
   async update(id: string, data: IUpdateSupplierDto, operatedBy = 'admin'): Promise<ISupplier | null> {
@@ -128,8 +154,8 @@ export class SupplierService {
     if (data.subCategory !== undefined) updateData.subCategory = data.subCategory;
     if (data.cooperationType !== undefined) updateData.cooperationType = data.cooperationType;
     if (data.priceRange !== undefined) updateData.priceRange = data.priceRange;
-    if (data.cooperationCount !== undefined) updateData.cooperationCount = data.cooperationCount;
-    if (data.rating !== undefined) updateData.rating = data.rating;
+    if (data.cooperationCount !== undefined) updateData.cooperationCount = this.clampCount(data.cooperationCount);
+    if (data.rating !== undefined) updateData.rating = this.clampRating(data.rating);
     if (data.riskStatus !== undefined) updateData.riskStatus = data.riskStatus;
     if (data.isInStock !== undefined) updateData.isInStock = data.isInStock;
     if (data.entityType !== undefined) updateData.entityType = data.entityType;
@@ -144,13 +170,6 @@ export class SupplierService {
     if (data.cooperationCategory !== undefined) updateData.cooperationCategory = data.cooperationCategory;
     if (data.supplierType !== undefined) updateData.supplierType = data.supplierType;
     if (data.artworkUrls !== undefined) updateData.artworkUrls = data.artworkUrls;
-    // 数值范围校验
-    if (data.cooperationCount !== undefined) {
-      updateData.cooperationCount = Math.max(0, Math.min(9999, Number(data.cooperationCount) || 0));
-    }
-    if (data.rating !== undefined) {
-      updateData.rating = data.rating === null ? null : Math.max(1, Math.min(5, Number(data.rating)));
-    }
 
     await this.db.update(suppliers).set(updateData).where(eq(suppliers.id, id));
     const updated = await this.findById(id);
@@ -187,6 +206,9 @@ export class SupplierService {
       this.logger.warn('Pre-import snapshot failed (non-blocking):', err);
     }
 
+    // 为本次导入生成统一批次号，使「导入批次列表 / 批次回滚」可用
+    const importBatchId = `import_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}_${crypto.randomUUID().slice(0, 8)}`;
+
     let successCount = 0;
     let failCount = 0;
     const errors: { row: number; name: string; reason: string }[] = [];
@@ -194,7 +216,7 @@ export class SupplierService {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       try {
-        await this.create(item, operatedBy);
+        await this.create(item, operatedBy, { importSource: 'import', importBatchId });
         successCount++;
       } catch (err) {
         failCount++;

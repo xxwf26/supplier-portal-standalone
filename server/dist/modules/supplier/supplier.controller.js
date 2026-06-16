@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SupplierController = void 0;
 const common_1 = require("@nestjs/common");
 const supplier_service_1 = require("./supplier.service");
+const supplier_dto_1 = require("./supplier.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const roles_guard_1 = require("../auth/roles.guard");
 const roles_decorator_1 = require("../auth/roles.decorator");
@@ -112,7 +113,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [supplier_dto_1.BatchCreateSupplierDto, Object]),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "batchCreate", null);
 __decorate([
@@ -122,7 +123,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [supplier_dto_1.CreateSupplierDto, Object]),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "create", null);
 __decorate([
@@ -133,7 +134,7 @@ __decorate([
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:paramtypes", [String, supplier_dto_1.UpdateSupplierDto, Object]),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "update", null);
 __decorate([

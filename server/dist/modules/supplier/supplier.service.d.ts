@@ -8,7 +8,14 @@ export declare class SupplierService {
     constructor(db: Database, auditService: AuditService);
     findAll(filter?: ISupplierFilter): Promise<ISupplierListResponse>;
     findById(id: string): Promise<ISupplier | null>;
-    create(data: ICreateSupplierDto, operatedBy?: string): Promise<ISupplier>;
+    create(data: ICreateSupplierDto, operatedBy?: string, options?: {
+        importSource?: string;
+        importBatchId?: string;
+    }): Promise<ISupplier>;
+    /** 合作频次范围校验：0 ~ 9999 */
+    private clampCount;
+    /** 评分范围校验：1 ~ 5，空值保持 null */
+    private clampRating;
     update(id: string, data: IUpdateSupplierDto, operatedBy?: string): Promise<ISupplier | null>;
     delete(id: string, operatedBy?: string): Promise<boolean>;
     batchCreate(items: ICreateSupplierDto[], operatedBy?: string): Promise<IBatchCreateResponse>;

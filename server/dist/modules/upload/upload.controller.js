@@ -17,8 +17,19 @@ const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const multer_1 = require("multer");
 const path_1 = require("path");
+// 上传目录：优先用 UPLOAD_DIR 环境变量；相对路径基于 server 工作目录解析为绝对路径，
+// 避免因启动 cwd 不同导致文件写错位置 / 服务不到
+const UPLOAD_DIR = (() => {
+    const configured = process.env.UPLOAD_DIR || '../uploads';
+    return (0, path_1.isAbsolute)(configured) ? configured : (0, path_1.resolve)(process.cwd(), configured);
+})();
+// 允许的图片扩展名（与 mimetype 双重校验，mimetype 可被伪造）
+const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']);
 let UploadController = class UploadController {
     uploadFile(file) {
+        if (!file) {
+            throw new common_1.BadRequestException('未接收到文件');
+        }
         return {
             url: `/uploads/${file.filename}`,
             fileName: file.originalname,
@@ -30,16 +41,18 @@ __decorate([
     (0, common_1.Post)(),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
         storage: (0, multer_1.diskStorage)({
-            destination: (0, path_1.join)(process.cwd(), '..', 'uploads'),
+            destination: UPLOAD_DIR,
             filename: (_req, file, cb) => {
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                cb(null, uniqueSuffix + (0, path_1.extname)(file.originalname));
+                cb(null, uniqueSuffix + (0, path_1.extname)(file.originalname).toLowerCase());
             },
         }),
         limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
         fileFilter: (_req, file, cb) => {
-            if (!file.mimetype.startsWith('image/')) {
-                cb(new common_1.BadRequestException('只支持图片文件'), false);
+            const ext = (0, path_1.extname)(file.originalname).toLowerCase();
+            // 同时校验 mimetype 与扩展名
+            if (!file.mimetype.startsWith('image/') || !ALLOWED_EXT.has(ext)) {
+                cb(new common_1.BadRequestException('只支持图片文件（jpg/png/gif/webp/bmp/svg）'), false);
             }
             else {
                 cb(null, true);

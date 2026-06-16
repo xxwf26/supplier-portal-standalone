@@ -12,10 +12,16 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'supplier-portal-secret-key-2024'),
-        signOptions: { expiresIn: '8h' },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('环境变量 JWT_SECRET 未配置，拒绝以默认密钥启动');
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: '8h' },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

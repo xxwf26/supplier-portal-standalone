@@ -43,6 +43,10 @@ let AuditController = class AuditController {
     listSnapshots() {
         return this.auditService.listSnapshots();
     }
+    /** 恢复快照（管理员） */
+    restoreSnapshot(filename, req) {
+        return this.auditService.restoreSnapshot(decodeURIComponent(filename), req.user?.username ?? 'admin');
+    }
     /** 手动创建快照（管理员） */
     createSnapshot(req) {
         return this.auditService.createSnapshot(req.user?.username ?? 'manual');
@@ -96,6 +100,16 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AuditController.prototype, "listSnapshots", null);
+__decorate([
+    (0, common_1.Post)('restore-snapshot/:filename'),
+    (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin'),
+    __param(0, (0, common_1.Param)('filename')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AuditController.prototype, "restoreSnapshot", null);
 __decorate([
     (0, common_1.Post)('snapshots'),
     (0, common_1.UseGuards)(roles_guard_1.RolesGuard),

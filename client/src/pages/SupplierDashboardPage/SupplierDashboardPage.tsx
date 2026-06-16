@@ -220,12 +220,18 @@ export default function SupplierDashboardPage() {
       );
     }
 
-    result = result.filter(
-      (s) =>
-        (s.priceRange[0] === 0 && s.priceRange[1] === 0) || // 无报价数据不过滤
-        (s.priceRange[0] >= currentFilters.priceRange[0] &&
-         s.priceRange[1] <= currentFilters.priceRange[1])
-    );
+    // 仅当用户实际调整过报价滑块（区间不等于默认 500~10000）时才按价格过滤，
+    // 否则报价低于 500 或高于 10000 的画师会在用户无感知的情况下被隐藏
+    const priceTouched =
+      currentFilters.priceRange[0] !== 500 || currentFilters.priceRange[1] !== 10000;
+    if (priceTouched) {
+      result = result.filter(
+        (s) =>
+          (s.priceRange[0] === 0 && s.priceRange[1] === 0) || // 无报价数据不过滤
+          (s.priceRange[0] >= currentFilters.priceRange[0] &&
+           s.priceRange[1] <= currentFilters.priceRange[1])
+      );
+    }
 
     return result;
   }, [processedSuppliers, currentFilters]);
@@ -334,10 +340,19 @@ export default function SupplierDashboardPage() {
     return displaySuppliers.filter((s) => selectedIds.has(s.id));
   }, [displaySuppliers, selectedIds]);
 
+  // 被当前筛选/搜索隐藏、但仍处于选中状态的数量。
+  // 这些项不会出现在 selectedSuppliers 中，导出/复制时需提示用户避免静默丢失
+  const hiddenSelectedCount = useMemo(() => {
+    return selectedIds.size - selectedSuppliers.length;
+  }, [selectedIds, selectedSuppliers]);
+
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExportPdf = useCallback(async () => {
     if (selectedSuppliers.length === 0 || isExporting) return;
+    if (hiddenSelectedCount > 0) {
+      toast.warning(`有 ${hiddenSelectedCount} 位已选画师被当前筛选/搜索隐藏，本次仅导出可见的 ${selectedSuppliers.length} 位`);
+    }
     setIsExporting(true);
     const toastId = toast.loading(`正在生成 PDF（0/${selectedSuppliers.length}）…`);
     try {
@@ -354,10 +369,13 @@ export default function SupplierDashboardPage() {
     } finally {
       setIsExporting(false);
     }
-  }, [selectedSuppliers, isExporting]);
+  }, [selectedSuppliers, isExporting, hiddenSelectedCount]);
 
   const handleCopyToClipboard = useCallback(async () => {
     if (selectedSuppliers.length === 0) return;
+    if (hiddenSelectedCount > 0) {
+      toast.warning(`有 ${hiddenSelectedCount} 位已选画师被当前筛选/搜索隐藏，本次仅复制可见的 ${selectedSuppliers.length} 位`);
+    }
 
     const statusLabelMap: Record<string, string> = {
       in_stock: '库内合作', outreach: '库外建联', blacklisted: '已拉黑',
@@ -399,7 +417,7 @@ export default function SupplierDashboardPage() {
     } catch {
       toast.error('复制失败，请手动复制');
     }
-  }, [selectedSuppliers]);
+  }, [selectedSuppliers, hiddenSelectedCount]);
 
   useEffect(() => {
     fetchSuppliers();

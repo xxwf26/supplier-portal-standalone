@@ -192,6 +192,31 @@ let AuditService = AuditService_1 = class AuditService {
         this.logger.log(`Log ${logId} rolled back by ${operatedBy}`);
         return { message: '撤回成功' };
     }
+    // ── 快照：恢复 ───────────────────────────────────────────
+    async restoreSnapshot(filename, operatedBy) {
+        if (!filename.endsWith('.sql') || filename.includes('/') || filename.includes('..')) {
+            throw new Error('非法的快照文件名');
+        }
+        const filepath = (0, path_1.join)(this.backupsDir, filename);
+        if (!(0, fs_1.existsSync)(filepath))
+            throw new Error('快照文件不存在');
+        const host = this.config.get('DB_HOST', 'localhost');
+        const port = this.config.get('DB_PORT', '3306');
+        const user = this.config.get('DB_USER', 'root');
+        const pass = this.config.get('DB_PASSWORD', '');
+        const dbName = this.config.get('DB_NAME', 'supplier_portal');
+        const cmd = `mysql -h${host} -P${port} -u${user} ${dbName} < "${filepath}"`;
+        try {
+            await execAsync(cmd, { env: { ...process.env, MYSQL_PWD: pass } });
+            await this.log({ operation: 'SNAPSHOT_RESTORE', operatedBy, batchId: filename });
+            this.logger.log(`Snapshot restored: ${filename} by ${operatedBy}`);
+            return { message: `数据库已恢复至快照 ${filename}，请刷新页面` };
+        }
+        catch (err) {
+            this.logger.error('Snapshot restore failed', err);
+            throw new Error('快照恢复失败：' + err.message);
+        }
+    }
     // ── 快照：创建（通过 MYSQL_PWD 环境变量传密码，避免命令行注入） ──
     async createSnapshot(reason = 'manual') {
         const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

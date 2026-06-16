@@ -48,14 +48,17 @@ let GlobalExceptionFilter = class GlobalExceptionFilter {
             };
         }
         else {
-            // 未知异常
+            // 未知异常：仅在非生产环境返回堆栈，避免向客户端泄露内部实现/路径
             httpStatus = common_1.HttpStatus.INTERNAL_SERVER_ERROR;
+            const isProduction = process.env.NODE_ENV === 'production';
+            // 始终在服务端日志中保留完整堆栈，便于排查
+            console.error('[GlobalExceptionFilter] Unhandled exception:', exception);
             errorResponse = {
                 error: {
                     code: api_response_code_1.ResponseCode.INTERNAL_ERROR,
                     message: '服务器内部错误',
-                    stack: exception.stack,
-                    cause: exception.cause,
+                    stack: isProduction ? undefined : exception.stack,
+                    cause: isProduction ? undefined : exception.cause,
                     timestamp: Date.now(),
                 },
             };

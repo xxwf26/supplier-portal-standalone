@@ -43,6 +43,9 @@ export declare class AuditService {
     rollbackLog(logId: number, operatedBy: string): Promise<{
         message: string;
     }>;
+    restoreSnapshot(filename: string, operatedBy: string): Promise<{
+        message: string;
+    }>;
     createSnapshot(reason?: string): Promise<{
         filename: string;
         size: number;

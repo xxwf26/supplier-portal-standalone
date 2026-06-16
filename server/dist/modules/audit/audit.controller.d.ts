@@ -40,6 +40,10 @@ export declare class AuditController {
         size: number;
         createdAt: string;
     }[];
+    /** 恢复快照（管理员） */
+    restoreSnapshot(filename: string, req: any): Promise<{
+        message: string;
+    }>;
     /** 手动创建快照（管理员） */
     createSnapshot(req: any): Promise<{
         filename: string;

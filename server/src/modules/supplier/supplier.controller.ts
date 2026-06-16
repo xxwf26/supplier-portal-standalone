@@ -13,7 +13,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { SupplierService } from './supplier.service';
-import { ICreateSupplierDto, IUpdateSupplierDto, ISupplierFilter, IBatchCreateResponse } from './supplier.types';
+import { ISupplierFilter, IBatchCreateResponse } from './supplier.types';
+import { CreateSupplierDto, UpdateSupplierDto, BatchCreateSupplierDto } from './supplier.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -61,7 +62,7 @@ export class SupplierController {
   @Post('batch')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  async batchCreate(@Body() data: { items: ICreateSupplierDto[] }, @Request() req: any): Promise<IBatchCreateResponse> {
+  async batchCreate(@Body() data: BatchCreateSupplierDto, @Request() req: any): Promise<IBatchCreateResponse> {
     if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
       throw new HttpException('导入数据不能为空', HttpStatus.BAD_REQUEST);
     }
@@ -74,7 +75,7 @@ export class SupplierController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  async create(@Body() data: ICreateSupplierDto, @Request() req: any) {
+  async create(@Body() data: CreateSupplierDto, @Request() req: any) {
     if (!data.accountName) {
       throw new HttpException('账号名称不能为空', HttpStatus.BAD_REQUEST);
     }
@@ -84,7 +85,7 @@ export class SupplierController {
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  async update(@Param('id') id: string, @Body() data: IUpdateSupplierDto, @Request() req: any) {
+  async update(@Param('id') id: string, @Body() data: UpdateSupplierDto, @Request() req: any) {
     const supplier = await this.supplierService.update(id, data, req.user?.username);
     if (!supplier) {
       throw new HttpException('供应商不存在', HttpStatus.NOT_FOUND);

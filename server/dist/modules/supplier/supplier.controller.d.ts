@@ -1,5 +1,6 @@
 import { SupplierService } from './supplier.service';
-import { ICreateSupplierDto, IUpdateSupplierDto, IBatchCreateResponse } from './supplier.types';
+import { IBatchCreateResponse } from './supplier.types';
+import { CreateSupplierDto, UpdateSupplierDto, BatchCreateSupplierDto } from './supplier.dto';
 export declare class SupplierController {
     private readonly supplierService;
     constructor(supplierService: SupplierService);
@@ -13,11 +14,9 @@ export declare class SupplierController {
         riskCount: Record<string, number>;
     }>;
     findById(id: string): Promise<import("./supplier.types").ISupplier>;
-    batchCreate(data: {
-        items: ICreateSupplierDto[];
-    }, req: any): Promise<IBatchCreateResponse>;
-    create(data: ICreateSupplierDto, req: any): Promise<import("./supplier.types").ISupplier>;
-    update(id: string, data: IUpdateSupplierDto, req: any): Promise<import("./supplier.types").ISupplier>;
+    batchCreate(data: BatchCreateSupplierDto, req: any): Promise<IBatchCreateResponse>;
+    create(data: CreateSupplierDto, req: any): Promise<import("./supplier.types").ISupplier>;
+    update(id: string, data: UpdateSupplierDto, req: any): Promise<import("./supplier.types").ISupplier>;
     delete(id: string, req: any): Promise<{
         success: boolean;
     }>;
