@@ -232,10 +232,69 @@ export class SupplierService {
   }
 
   /** 提取字符串中所有长度>=2的连续子串（用于模糊匹配） */
+  /** 比较前对名称做规范化：去除括号内容、地名、行业通用词、法人主体后缀 */
+  private normalizeName(str: string): string {
+    // ① 先删括号内容（必须在删括号字符之前）
+    let s = str
+      .replace(/（[^）]*）/g, '')   // 全角括号
+      .replace(/\([^)]*\)/g, '')    // 半角括号
+      .replace(/【[^】]*】/g, '')   // 方括号
+      .replace(/\s+/g, '');         // 空格
+
+    // ② 从尾部去除法人主体/行业后缀（从长到短逐个尝试）
+    const suffixes = [
+      '有限责任公司', '股份有限公司', '有限合伙企业',
+      '文化传媒有限公司', '科技有限公司', '网络科技有限公司',
+      '文化创意有限公司', '创意设计有限公司',
+      '文化发展有限公司', '影视文化有限公司',
+      '文化传播有限公司', '动漫科技有限公司',
+      '有限公司', '工作室',
+      '文化传媒', '网络科技', '文化科技', '创意设计',
+      '文化传播', '影视传媒', '影视文化', '互娱科技',
+      '文化', '传媒', '科技', '网络', '信息', '动画',
+      '设计', '创意', '传播', '互娱', '影视', '映画',
+      '艺术', '制作', '互动', '数字', '游戏', '教育',
+      '有限',
+    ];
+    for (const sfx of suffixes) {
+      if (s.endsWith(sfx)) {
+        s = s.slice(0, s.length - sfx.length);
+      }
+    }
+
+    // ③ 从头部去除城市/地区前缀以及常见笔名前缀
+    const prefixes = [
+      '成都市', '天津市', '北京市', '上海市', '广州市', '深圳市',
+      '杭州市', '武汉市', '南京市', '重庆市', '西安市',
+      '哈尔滨市', '南通市', '昆山市',
+      '成都', '天津', '北京', '上海', '广州', '深圳',
+      '杭州', '武汉', '南京', '重庆', '西安', '贵州',
+      '哈尔滨', '南通', '昆山', '青羊区', '锦江区',
+      '画画的', // 常见笔名前缀，不作为相似标志
+    ];
+    for (const pfx of prefixes) {
+      if (s.startsWith(pfx)) {
+        s = s.slice(pfx.length);
+        break; // 只去一个前缀
+      }
+    }
+
+    // ④ 去除画师档案里的活动/类别标签（"-带人原画""-场景"等）
+    s = s.replace(/[-_][^-_]{0,10}$/, '');
+
+    return s.trim();
+  }
+
   private getNgrams(str: string, minLen = 2): Set<string> {
-    const s = str.replace(/[\s（）()【】\[\]「」『』""'']/g, ''); // 去除括号空格
+    const s = this.normalizeName(str);
+    if (s.length < 2) return new Set();
+
+    // 名称主要为英文/数字时，要求更长的匹配（避免 na/an/ana 等短字母组合误触发）
+    const isMainlyLatin = (s.match(/[a-zA-Z0-9]/g) || []).length > s.length * 0.5;
+    const effectiveMinLen = isMainlyLatin ? 4 : minLen;
+
     const grams = new Set<string>();
-    for (let len = minLen; len <= Math.min(s.length, 4); len++) {
+    for (let len = effectiveMinLen; len <= Math.min(s.length, 4); len++) {
       for (let i = 0; i <= s.length - len; i++) {
         grams.add(s.slice(i, i + len));
       }
