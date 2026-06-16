@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
+import { cn } from '@/lib/utils';
 
 export interface IFilterState {
   types: string[];
@@ -14,6 +15,78 @@ export interface IFilterState {
 }
 
 export const STORAGE_KEY = '__global_supplier_filter';
+
+// 分区：标题带左侧强调色条，统一间距
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <span className="w-1 h-3 rounded-full bg-primary/60" />
+        <span className="text-xs font-semibold text-foreground/80 tracking-wide">{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// 复选行：整行可点击，带 hover 背景
+function CheckRow({
+  checked,
+  onToggle,
+  label,
+  muted = false,
+  labelClassName,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label: string;
+  muted?: boolean;
+  labelClassName?: string;
+}) {
+  return (
+    <label className="flex items-center gap-2.5 px-2 py-1.5 -mx-2 rounded-md cursor-pointer hover:bg-muted/60 transition-colors group">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={onToggle}
+        className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+      />
+      <span
+        className={cn(
+          'text-sm transition-colors',
+          labelClassName || (muted ? 'text-muted-foreground' : 'text-foreground'),
+          'group-hover:text-primary'
+        )}
+      >
+        {label}
+      </span>
+    </label>
+  );
+}
+
+// 风格标签 Pill
+function Pill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150',
+        active
+          ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function FilterPanelSection({
   onFilterChange,
@@ -98,118 +171,128 @@ export default function FilterPanelSection({
 
   const content = (
     <>
-      <div className="flex items-center justify-between mb-4">
-        {mode === 'sidebar' && <h2 className="text-sm font-semibold text-foreground">筛选条件</h2>}
+      {/* 头部：标题 + 已选数量 + 清空 */}
+      <div className="flex items-center gap-2 mb-5">
+        <h2 className="text-sm font-semibold text-foreground">筛选条件</h2>
+        {activeFilterCount > 0 && (
+          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+            {activeFilterCount}
+          </span>
+        )}
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="text-xs text-primary hover:text-primary/80 transition-colors ml-auto"
+            className="ml-auto text-xs text-primary hover:text-primary/80 transition-colors"
           >
-            清空筛选
+            清空
           </button>
         )}
       </div>
 
-      {/* 供应商类型 */}
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-2 block">供应商类型</label>
-        <div className="space-y-2">
-          {typeOptions.map(option => (
-            <label key={option.value} className="flex items-center gap-2 cursor-pointer group">
-              <Checkbox checked={filters.types.includes(option.value)} onCheckedChange={() => toggleArrayFilter('types', option.value)}
-                className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-              <span className="text-sm text-foreground group-hover:text-primary transition-colors">{option.label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* 合作类型 */}
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-2 block">合作类型</label>
-        <div className="space-y-2">
-          {cooperationOptions.map(option => (
-            <label key={option.value} className="flex items-center gap-2 cursor-pointer group">
-              <Checkbox checked={filters.cooperationTypes.includes(option.value)} onCheckedChange={() => toggleArrayFilter('cooperationTypes', option.value)}
-                className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-              <span className="text-sm text-foreground group-hover:text-primary transition-colors">{option.label}</span>
-            </label>
-          ))}
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <Checkbox checked={filters.cooperationTypes.includes('__unset__')} onCheckedChange={() => toggleArrayFilter('cooperationTypes', '__unset__')}
-              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-            <span className="text-sm text-muted-foreground group-hover:text-primary transition-colors">未填写</span>
-          </label>
-        </div>
-      </div>
-
-      {/* 细分风格 */}
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-2 block">细分风格</label>
-        <div className="flex flex-wrap gap-2">
-          {styleOptions.map(option => (
-            <button key={option.value} onClick={() => toggleArrayFilter('styles', option.value)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
-                filters.styles.includes(option.value)
-                  ? `bg-primary/10 text-primary ring-1 ring-primary/30`
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`} >
-              {option.label}
-            </button>
-          ))}
-          <button onClick={() => toggleArrayFilter('styles', '__unset__')}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
-              filters.styles.includes('__unset__')
-                ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}>
-            未填写
-          </button>
-        </div>
-      </div>
-
-      {/* 报价区间 */}
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-2 block">报价区间</label>
-        <div className="px-1">
-          <Slider value={filters.priceRange} onValueChange={handlePriceChange} min={0} max={10000} step={100} className="mb-3" />
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{filters.priceRange[0]}元</span><span>{filters.priceRange[1]}元</span>
+      <div className="space-y-5">
+        {/* 供应商类型 */}
+        <Section title="供应商类型">
+          <div className="space-y-0.5">
+            {typeOptions.map(option => (
+              <CheckRow
+                key={option.value}
+                checked={filters.types.includes(option.value)}
+                onToggle={() => toggleArrayFilter('types', option.value)}
+                label={option.label}
+              />
+            ))}
           </div>
-        </div>
-      </div>
+        </Section>
 
-      {/* 合作状态 */}
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-2 block">合作状态</label>
-        <div className="space-y-2">
-          {statusOptions.map(option => (
-            <label key={option.value} className="flex items-center gap-2 cursor-pointer group">
-              <Checkbox checked={filters.status.includes(option.value)} onCheckedChange={() => toggleArrayFilter('status', option.value)}
-                className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-              <span className={`text-sm ${option.color} group-hover:opacity-80 transition-opacity`}>{option.label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
+        {/* 合作类型 */}
+        <Section title="合作类型">
+          <div className="space-y-0.5">
+            {cooperationOptions.map(option => (
+              <CheckRow
+                key={option.value}
+                checked={filters.cooperationTypes.includes(option.value)}
+                onToggle={() => toggleArrayFilter('cooperationTypes', option.value)}
+                label={option.label}
+              />
+            ))}
+            <CheckRow
+              checked={filters.cooperationTypes.includes('__unset__')}
+              onToggle={() => toggleArrayFilter('cooperationTypes', '__unset__')}
+              label="未填写"
+              muted
+            />
+          </div>
+        </Section>
 
-      {/* 所属项目 */}
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-2 block">所属项目</label>
-        <div className="space-y-2">
-          {projectOptions.map(option => (
-            <label key={option.value} className="flex items-center gap-2 cursor-pointer group">
-              <Checkbox checked={filters.projects.includes(option.value)} onCheckedChange={() => toggleArrayFilter('projects', option.value)}
-                className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-              <span className="text-sm text-foreground group-hover:text-primary transition-colors">{option.label}</span>
-            </label>
-          ))}
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <Checkbox checked={filters.projects.includes('__unset__')} onCheckedChange={() => toggleArrayFilter('projects', '__unset__')}
-              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-            <span className="text-sm text-muted-foreground group-hover:text-primary transition-colors">未填写</span>
-          </label>
-        </div>
+        {/* 细分风格 */}
+        <Section title="细分风格">
+          <div className="flex flex-wrap gap-1.5">
+            {styleOptions.map(option => (
+              <Pill
+                key={option.value}
+                active={filters.styles.includes(option.value)}
+                onClick={() => toggleArrayFilter('styles', option.value)}
+              >
+                {option.label}
+              </Pill>
+            ))}
+            <Pill
+              active={filters.styles.includes('__unset__')}
+              onClick={() => toggleArrayFilter('styles', '__unset__')}
+            >
+              未填写
+            </Pill>
+          </div>
+        </Section>
+
+        {/* 报价区间 */}
+        <Section title="报价区间">
+          <div className="px-1 pt-1">
+            <div className="flex items-center justify-between mb-2.5 text-xs">
+              <span className="font-medium text-foreground tabular-nums">{filters.priceRange[0]}</span>
+              <span className="text-muted-foreground">—</span>
+              <span className="font-medium text-foreground tabular-nums">
+                {filters.priceRange[1]}{filters.priceRange[1] >= 10000 ? '+' : ''} 元
+              </span>
+            </div>
+            <Slider value={filters.priceRange} onValueChange={handlePriceChange} min={0} max={10000} step={100} />
+          </div>
+        </Section>
+
+        {/* 合作状态 */}
+        <Section title="合作状态">
+          <div className="space-y-0.5">
+            {statusOptions.map(option => (
+              <CheckRow
+                key={option.value}
+                checked={filters.status.includes(option.value)}
+                onToggle={() => toggleArrayFilter('status', option.value)}
+                label={option.label}
+                labelClassName={option.color}
+              />
+            ))}
+          </div>
+        </Section>
+
+        {/* 所属项目 */}
+        <Section title="所属项目">
+          <div className="space-y-0.5">
+            {projectOptions.map(option => (
+              <CheckRow
+                key={option.value}
+                checked={filters.projects.includes(option.value)}
+                onToggle={() => toggleArrayFilter('projects', option.value)}
+                label={option.label}
+              />
+            ))}
+            <CheckRow
+              checked={filters.projects.includes('__unset__')}
+              onToggle={() => toggleArrayFilter('projects', '__unset__')}
+              label="未填写"
+              muted
+            />
+          </div>
+        </Section>
       </div>
     </>
   );
@@ -219,7 +302,7 @@ export default function FilterPanelSection({
   }
 
   return (
-    <aside className="w-[280px] flex-shrink-0 bg-card border-r border-border p-4 overflow-y-auto sticky top-0 h-[calc(100vh-64px)]">
+    <aside className="w-[260px] flex-shrink-0 bg-card border-r border-border px-4 py-5 overflow-y-auto sticky top-0 h-[calc(100vh-64px)]">
       {content}
     </aside>
   );
