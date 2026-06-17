@@ -240,6 +240,8 @@ export default function SupplierDetailModal({
     value: o.value,
     label: o.label,
   }));
+  // 合作类型：配置中未被选中的选项（用于显示"可添加"列表）
+  const availableCoopTypes = cooperationTypeOptions.filter(o => !cooperationTypeVal.includes(o.value));
   const stylePresets = filterConfig.style.map((o) => o.value);
   const projectOptions = filterConfig.project.map((o) => o.value);
 
@@ -270,6 +272,7 @@ export default function SupplierDetailModal({
   const [supplierTypeVal, setSupplierTypeVal] = useState('');
   const [entityTypeVal, setEntityTypeVal] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
+  const [newCoopInput, setNewCoopInput] = useState('');
   const [uploading, setUploading] = useState(false);
 
   // 备注快捷模板
@@ -299,6 +302,7 @@ export default function SupplierDetailModal({
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
+  const coopInputRef = useRef<HTMLInputElement>(null);
 
   const draftKey = supplier ? `__draft_edit_${supplier.id}` : null;
 
@@ -647,6 +651,12 @@ export default function SupplierDetailModal({
     setCooperationTypeVal((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
+  };
+  const addCoopFromInput = () => {
+    const t = newCoopInput.trim();
+    if (!t || cooperationTypeVal.includes(t)) { setNewCoopInput(''); return; }
+    setCooperationTypeVal(prev => [...prev, t]);
+    setNewCoopInput('');
   };
 
   const availablePresets = stylePresets.filter((p: string) => !styleTags.includes(p));
@@ -1014,21 +1024,55 @@ export default function SupplierDetailModal({
                 </div>
                 <div className={moduleBody}>
                   {isEditing ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {cooperationTypeOptions.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => toggleCooperationType(opt.value)}
-                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
-                            cooperationTypeVal.includes(opt.value)
-                              ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
+                    <div className="space-y-2">
+                      {/* 已选合作类型 - 带 × 删除 */}
+                      {cooperationTypeVal.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {cooperationTypeVal.map((ct, index) => (
+                            <Badge
+                              key={ct}
+                              variant="outline"
+                              className="text-xs cursor-pointer bg-primary/5 text-primary border-primary/20"
+                            >
+                              {ct}
+                              <button
+                                onClick={() => toggleCooperationType(ct)}
+                                className="ml-0.5 opacity-60 hover:opacity-100"
+                              >
+                                <XIcon className="w-2.5 h-2.5" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {/* 可添加的预设选项 */}
+                      {availableCoopTypes.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {availableCoopTypes.map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => toggleCooperationType(opt.value)}
+                              className="px-1.5 py-0.5 rounded-full text-xs border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                            >
+                              + {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {/* 自定义输入 */}
+                      <div className="flex items-center gap-1">
+                        <Input
+                          ref={coopInputRef}
+                          placeholder="自定义"
+                          value={newCoopInput}
+                          onChange={(e) => setNewCoopInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCoopFromInput(); } }}
+                          className="flex-1 text-xs h-7"
+                        />
+                        <Button variant="outline" size="sm" onClick={addCoopFromInput} className="h-6 w-6 p-0">
+                          <PlusIcon className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     supplier.cooperationType ? (
