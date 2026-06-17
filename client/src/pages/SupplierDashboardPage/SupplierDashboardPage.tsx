@@ -425,6 +425,14 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
     fetchSuppliers();
   }, [fetchSuppliers]);
 
+  // rawSuppliers 更新后同步刷新弹窗内的供应商数据（保存后实时展示最新内容）
+  useEffect(() => {
+    if (selectedRawSupplier) {
+      const updated = rawSuppliers.find(r => r.id === selectedRawSupplier.id);
+      if (updated) setSelectedRawSupplier(updated);
+    }
+  }, [rawSuppliers]);
+
   // 滚动超过一屏时显示「回到顶部」按钮
   useEffect(() => {
     const onScroll = () => setShowBackToTop(window.scrollY > window.innerHeight * 0.6);
