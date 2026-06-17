@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { UserPlusIcon, PlusIcon, Trash2Icon, ArchiveRestoreIcon } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { UserPlusIcon, PlusIcon, Trash2Icon, ArchiveRestoreIcon, UploadIcon, ImageIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -23,6 +23,7 @@ import { supplierApi } from '@/api/supplier';
 import { IPriceItem, IContactItem } from '@/api/types';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/polyfills/logger';
+import { getDataloom, getDefaultBucketId } from '@/lib/polyfills/storage';
 import { toast } from 'sonner';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import { supplierTypeToBackend } from '@/lib/filterConfig';
@@ -113,6 +114,9 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
   const [saving, setSaving] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [artworkUrls, setArtworkUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [similarSuppliers, setSimilarSuppliers] = useState<string[]>([]);
 
   const [accountName, setAccountName] = useState('');
@@ -208,7 +212,34 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     setLinkEntries([]);
     setPriceItemEntries([]);
     setContactItemEntries([]);
+    setArtworkUrls([]);
     setDraftSavedAt(null);
+  };
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const dataloom = await getDataloom();
+      const { data, error } = await dataloom.storage.from(getDefaultBucketId()).uploadFile(file);
+      if (error || !data) {
+        const msg = (error && 'error_msg' in error ? (error as any).error_msg : undefined)
+          || (error && 'message' in error ? (error as any).message : undefined) || '上传失败';
+        throw new Error(msg);
+      }
+      setArtworkUrls(prev => [...prev, data.download_url]);
+    } catch (err) {
+      logger.error('Upload failed:', String(err));
+      toast.error('图片上传失败，请重试');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach(file => handleUpload(file));
+    e.target.value = '';
   };
 
   const handleClose = () => {
@@ -330,6 +361,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         socialLinks: Object.keys(manualLinks).length > 0 ? manualLinks : undefined,
         priceItems,
         contactItems,
+        artworkUrls: artworkUrls.length > 0 ? artworkUrls : undefined,
       });
 
       toast.success(`供应商「${accountName}」创建成功`);
@@ -414,18 +446,20 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                   合作类型
                 </label>
-                <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
+                <div className="flex flex-wrap gap-1.5">
                   {cooperationTypeOptions.map((opt) => (
-                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer group">
-                      <Checkbox
-                        checked={cooperationTypes.includes(opt.value)}
-                        onCheckedChange={() => toggleCooperationType(opt.value)}
-                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                      <span className="text-sm text-foreground group-hover:text-primary transition-colors">
-                        {opt.label}
-                      </span>
-                    </label>
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => toggleCooperationType(opt.value)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
+                        cooperationTypes.includes(opt.value)
+                          ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
                   ))}
                   {cooperationTypeOptions.length === 0 && (
                     <p className="text-xs text-muted-foreground">暂无合作类型选项</p>
@@ -595,6 +629,41 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                 >
                   <PlusIcon className="w-3.5 h-3.5" />
                 </Button>
+              </div>
+            </div>
+
+            {/* 作品图片上传 */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">作品图片</label>
+              {artworkUrls.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {artworkUrls.map((url, idx) => (
+                    <div key={idx} className="relative aspect-[4/3] rounded-lg overflow-hidden group border border-border">
+                      <img src={url} alt={`作品 ${idx + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setArtworkUrls(prev => prev.filter((_, i) => i !== idx))}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2Icon className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div
+                className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 min-h-[80px]"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
+                {uploading ? (
+                  <p className="text-xs text-primary">上传中...</p>
+                ) : (
+                  <>
+                    <UploadIcon className="w-5 h-5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">点击上传作品图片（可多选）</p>
+                  </>
+                )}
               </div>
             </div>
 
