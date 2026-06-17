@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/lib/auth';
 import {
   AwardIcon,
   Building2Icon,
@@ -126,6 +127,7 @@ const SupplierCard = React.memo(function SupplierCard({
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
 }) {
+  const { isAdmin } = useAuth();
   const typeInfo = typeConfig[supplier.type];
   const statusInfo = statusConfig[supplier.status];
   const hasLinks = Object.keys(supplier.links || {}).length > 0;
@@ -227,7 +229,7 @@ const SupplierCard = React.memo(function SupplierCard({
               {style}
             </span>
           ))}
-          {supplier.status === 'blacklisted' && (
+          {isAdmin && supplier.status === 'blacklisted' && (
             <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border', statusInfo.color)}>
               {supplier.riskStatus}
             </span>
