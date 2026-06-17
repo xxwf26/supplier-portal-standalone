@@ -32,6 +32,9 @@ function splitTags(s: string | null): string[] {
   return s.split(/[/、，]/).map((x) => x.trim()).filter(Boolean);
 }
 
+/** 这些分类的 value 始终等于 label（label 即唯一标识）；supplierType/cooperationStatus 的 value 是功能码，保留 */
+const LABEL_AS_VALUE = new Set(['style', 'cooperationType', 'project']);
+
 @Injectable()
 export class ConfigService {
   constructor(@Inject(DRIZZLE_DATABASE) private readonly db: Database) {}
@@ -43,7 +46,7 @@ export class ConfigService {
       if (!grouped[r.category]) grouped[r.category] = [];
       grouped[r.category].push({
         id: r.id, category: r.category, label: r.label, value: r.value,
-        color: r.color, sortOrder: r.sortOrder, enabled: r.enabled,
+        color: r.color, note: r.note, sortOrder: r.sortOrder, enabled: r.enabled,
       });
     }
     return grouped;
@@ -95,21 +98,30 @@ export class ConfigService {
     return `「${label}」正被 ${names.length} 个画师使用（${shown}${more}），请先修改这些画师后再${action}`;
   }
 
-  async create(data: { category: string; label: string; value: string; color?: string; sort_order?: number }) {
+  async create(data: { category: string; label: string; value?: string; color?: string; note?: string; sort_order?: number }) {
     const id = crypto.randomUUID();
+    // style/cooperationType/project：value 始终等于 label；其余用传入的 value（功能码）
+    const value = LABEL_AS_VALUE.has(data.category) ? data.label : (data.value ?? data.label);
     await this.db.insert(filterConfig).values({
-      id, category: data.category, label: data.label, value: data.value,
-      color: data.color || null, sortOrder: data.sort_order || 0, enabled: true,
+      id, category: data.category, label: data.label, value,
+      color: data.color || null, note: data.note || null,
+      sortOrder: data.sort_order || 0, enabled: true,
     });
     return { id };
   }
 
-  async update(id: string, data: { label?: string; value?: string; color?: string; sort_order?: number; enabled?: boolean }) {
+  async update(id: string, data: { label?: string; value?: string; color?: string; note?: string; sort_order?: number; enabled?: boolean }) {
     const [current] = await this.db.select().from(filterConfig).where(eq(filterConfig.id, id));
     if (!current) throw new NotFoundException('配置项不存在');
 
+    // style/cooperationType/project：改 label 时 value 跟随 label（label 即唯一标识）
+    let nextValue = data.value;
+    if (LABEL_AS_VALUE.has(current.category) && data.label !== undefined) {
+      nextValue = data.label;
+    }
+
     // 引用保护：改 value 等于"删旧值"，会让引用旧值的画师变孤儿 → 有画师在用时禁止改 value
-    if (data.value !== undefined && data.value !== current.value) {
+    if (nextValue !== undefined && nextValue !== current.value) {
       const inUse = await this.findSuppliersUsingOption(current.category, current.value);
       if (inUse.length > 0) {
         throw new BadRequestException(this.buildInUseMessage(current.label, inUse, '修改取值'));
@@ -118,8 +130,9 @@ export class ConfigService {
 
     const updateData: Record<string, unknown> = {};
     if (data.label !== undefined) updateData.label = data.label;
-    if (data.value !== undefined) updateData.value = data.value;
+    if (nextValue !== undefined) updateData.value = nextValue;
     if (data.color !== undefined) updateData.color = data.color;
+    if (data.note !== undefined) updateData.note = data.note || null;
     if (data.sort_order !== undefined) updateData.sortOrder = data.sort_order;
     if (data.enabled !== undefined) updateData.enabled = data.enabled;
     await this.db.update(filterConfig).set(updateData).where(eq(filterConfig.id, id));

@@ -31,6 +31,7 @@ export default function SystemConfigPage() {
         <h2 className="text-xl font-bold mb-1">系统配置 - 编辑筛选字段</h2>
         <p className="text-sm text-muted-foreground mb-5">
           以下是左侧筛选面板与详情页共用的所有字段和选项（存储于数据库，全员共享）。可以编辑、删除、新增。
+          括号内为<strong>备注</strong>，仅本页可见、不会出现在筛选或详情页。
           <span className="text-orange-500 ml-2">⚠ 修改即刻保存到服务器，刷新页面后所有人生效。</span>
         </p>
         <ConfigManager />
@@ -61,21 +62,21 @@ function ConfigManager() {
   const isStyle = activeTab === 'style';
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
-  const [editValue, setEditValue] = useState('');
+  const [editNote, setEditNote] = useState('');
   const [newLabel, setNewLabel] = useState('');
-  const [newValue, setNewValue] = useState('');
+  const [newNote, setNewNote] = useState('');
   const [newColor, setNewColor] = useState('');
   const [busy, setBusy] = useState(false);
 
   const startEdit = (item: IFilterOption) => {
-    setEditingId(item.id); setEditLabel(item.label); setEditValue(item.value);
+    setEditingId(item.id); setEditLabel(item.label); setEditNote(item.note || '');
   };
 
   const saveEdit = async () => {
     if (editingId === null || !editLabel.trim()) return;
     setBusy(true);
     try {
-      await configApi.update(editingId, { label: editLabel.trim(), value: editValue.trim() });
+      await configApi.update(editingId, { label: editLabel.trim(), note: editNote.trim() });
       setEditingId(null);
       await reload();
     } catch (e) {
@@ -86,16 +87,16 @@ function ConfigManager() {
   };
 
   const addItem = async () => {
-    if (!newLabel.trim() || !newValue.trim()) return;
+    if (!newLabel.trim()) return;
     setBusy(true);
     try {
       await configApi.create({
         category: activeTab,
         label: newLabel.trim(),
-        value: newValue.trim(),
+        ...(newNote.trim() ? { note: newNote.trim() } : {}),
         ...(newColor ? { color: newColor } : {}),
       });
-      setNewLabel(''); setNewValue(''); setNewColor('');
+      setNewLabel(''); setNewNote(''); setNewColor('');
       await reload();
     } catch (e) {
       alert(errMsg(e, '新增失败'));
@@ -162,14 +163,14 @@ function ConfigManager() {
                 {editingId === item.id ? (
                   <>
                     <input value={editLabel} onChange={e => setEditLabel(e.target.value)} className="border border-primary rounded px-2 py-1 text-sm w-28" placeholder="标签名" autoFocus />
-                    <input value={editValue} onChange={e => setEditValue(e.target.value)} className="border border-primary rounded px-2 py-1 text-sm w-36" placeholder="值" />
+                    <input value={editNote} onChange={e => setEditNote(e.target.value)} className="border border-primary rounded px-2 py-1 text-sm w-40" placeholder="备注（仅本页可见）" />
                     <button onClick={saveEdit} disabled={busy} className="px-2 py-1 bg-primary text-white rounded text-xs font-medium disabled:opacity-50">保存</button>
                     <button onClick={() => setEditingId(null)} className="px-2 py-1 border rounded text-xs">取消</button>
                   </>
                 ) : (
                   <>
                     <span className="text-sm font-medium text-foreground">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">({item.value})</span>
+                    {item.note && <span className="text-xs text-muted-foreground">（{item.note}）</span>}
                     {item.color && <span className="text-[10px] bg-muted px-1 rounded">{item.color}</span>}
                     <button onClick={() => startEdit(item)} className="ml-auto px-2 py-1 bg-primary text-white rounded text-xs font-medium hover:opacity-80">
                       编辑
@@ -187,7 +188,7 @@ function ConfigManager() {
 
           <div className="flex items-center gap-2 bg-white border-2 border-dashed border-primary/30 rounded-lg px-4 py-3">
             <input placeholder="标签名" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
-            <input placeholder="值" value={newValue} onChange={e => setNewValue(e.target.value)} className="border rounded px-2 py-1 text-sm w-36" />
+            <input placeholder="备注（可选，仅本页可见）" value={newNote} onChange={e => setNewNote(e.target.value)} className="border rounded px-2 py-1 text-sm w-44" />
             {isStyle && (
               <select value={newColor} onChange={e => setNewColor(e.target.value)} className="border rounded px-2 py-1 text-sm">
                 <option value="">颜色</option>

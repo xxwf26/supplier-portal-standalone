@@ -21,14 +21,14 @@ export class ConfigController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  async create(@Body() data: { category: string; label: string; value: string; color?: string; sort_order?: number }) {
+  async create(@Body() data: { category: string; label: string; value?: string; color?: string; note?: string; sort_order?: number }) {
     return this.configService.create(data);
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  async update(@Param('id') id: string, @Body() data: { label?: string; value?: string; color?: string; sort_order?: number; enabled?: boolean }) {
+  async update(@Param('id') id: string, @Body() data: { label?: string; value?: string; color?: string; note?: string; sort_order?: number; enabled?: boolean }) {
     return this.configService.update(id, data);
   }
 
