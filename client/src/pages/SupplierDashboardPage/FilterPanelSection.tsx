@@ -226,8 +226,8 @@ export default function FilterPanelSection({
           </div>
         </Section>
 
-        {/* 细分风格 */}
-        <Section title="细分风格">
+        {/* 擅长风格 */}
+        <Section title="擅长风格">
           <div className="flex flex-wrap gap-1.5">
             {styleOptions.map(option => (
               <Pill

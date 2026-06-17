@@ -34,6 +34,7 @@ import { getDataloom } from '@/lib/polyfills/storage';
 import { getDefaultBucketId } from '@/lib/polyfills/storage';
 import { useAuth } from '@/lib/auth';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
+import { configApi } from '@/api/config';
 import { supplierTypeToBackend } from '@/lib/filterConfig';
 import { inferSupplierType } from '@/lib/supplierUtils';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
@@ -567,6 +568,16 @@ export default function SupplierDetailModal({
       const contactItems: IContactItem[] = contactItemEntries
         .filter((e) => e.type && e.value.trim())
         .map((e) => ({ type: e.type, value: e.value.trim() }));
+
+      // 把新输入的、系统配置里还没有的擅长风格同步进配置（之后筛选/配置/下拉即可见）
+      const newStyles = styleTags.filter((t) => t && !stylePresets.includes(t));
+      for (const s of newStyles) {
+        try {
+          await configApi.create({ category: 'style', label: s });
+        } catch {
+          // 忽略重复/权限等错误，不阻断画师保存
+        }
+      }
 
       await supplierApi.update(supplier.id, {
         accountName: nameVal.trim(),

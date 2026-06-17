@@ -26,6 +26,7 @@ import { logger } from '@/lib/polyfills/logger';
 import { getDataloom, getDefaultBucketId } from '@/lib/polyfills/storage';
 import { toast } from 'sonner';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
+import { configApi } from '@/api/config';
 import { supplierTypeToBackend } from '@/lib/filterConfig';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
 import { findSimilarNames } from '@/lib/supplierUtils';
@@ -350,6 +351,16 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
       const contactItems: IContactItem[] = contactItemEntries
         .filter((e) => e.type && e.value.trim())
         .map((e) => ({ type: e.type, value: e.value.trim() }));
+
+      // 把新输入的、系统配置里还没有的擅长风格同步进配置
+      const newStyles = styleTags.filter((t) => t && !stylePresets.includes(t));
+      for (const s of newStyles) {
+        try {
+          await configApi.create({ category: 'style', label: s });
+        } catch {
+          // 忽略重复/权限等错误，不阻断创建
+        }
+      }
 
       await supplierApi.create({
         accountName: accountName.trim(),
