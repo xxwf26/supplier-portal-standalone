@@ -146,11 +146,23 @@ const SupplierCard = React.memo(function SupplierCard({
     : '';
 
   const contactTypeLabel: Record<string, string> = { wechat: '微信', qq: 'QQ', phone: '电话' };
-  const priceText = supplier.priceItems && supplier.priceItems.length > 0
-    ? supplier.priceItems.map((p) => `${p.cooperationType} ${p.unitPrice}${p.priceUnit}`).join('\n')
-    : null;
-  const hasPreviewContent = (supplier.contactItems && supplier.contactItems.length > 0)
-    || priceText || supplier.notes;
+
+  // 卡片最多显示 2 条联系方式，悬浮补充显示剩余的
+  const extraContacts = supplier.contactItems && supplier.contactItems.length > 2
+    ? supplier.contactItems.slice(2)
+    : [];
+
+  // 平台链接（卡片只显示已补/待补 badge，悬浮显示具体链接名）
+  const linkEntries = Object.entries(supplier.links || {}).filter(([, v]) => v);
+
+  // 合作类型（卡片不显示）
+  const cooperationTypes = supplier.cooperationTypes || [];
+
+  // 悬浮只显示卡片未展示的内容
+  const hasPreviewContent = extraContacts.length > 0
+    || linkEntries.length > 0
+    || cooperationTypes.length > 0
+    || !!supplier.notes;
 
   return (
     <HoverCard openDelay={400} closeDelay={100}>
@@ -275,11 +287,24 @@ const SupplierCard = React.memo(function SupplierCard({
         <HoverCardContent side="right" align="start" className="w-64 p-3 space-y-2.5 text-xs">
           <p className="font-semibold text-sm text-foreground truncate">{supplier.name}</p>
 
-          {supplier.contactItems && supplier.contactItems.length > 0 && (
+          {/* 合作类型（卡片未展示） */}
+          {cooperationTypes.length > 0 && (
             <div>
-              <p className="text-[10px] font-medium text-muted-foreground mb-1">联系方式</p>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">合作类型</p>
+              <div className="flex flex-wrap gap-1">
+                {cooperationTypes.map((ct, i) => (
+                  <span key={i} className="px-1.5 py-0.5 rounded-full text-[10px] bg-primary/10 text-primary border border-primary/20">{ct}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 额外联系方式（卡片只显示前2条） */}
+          {extraContacts.length > 0 && (
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">更多联系方式</p>
               <div className="space-y-0.5">
-                {supplier.contactItems.map((c, i) => (
+                {extraContacts.map((c, i) => (
                   <p key={i} className="text-foreground">
                     <span className="text-muted-foreground w-8 inline-block">{contactTypeLabel[c.type] || c.type}</span>
                     {c.value}
@@ -289,13 +314,22 @@ const SupplierCard = React.memo(function SupplierCard({
             </div>
           )}
 
-          {priceText && (
+          {/* 平台链接（卡片只显示已补/待补标识） */}
+          {linkEntries.length > 0 && (
             <div>
-              <p className="text-[10px] font-medium text-muted-foreground mb-1">报价参考</p>
-              <p className="text-foreground whitespace-pre-line">{priceText}</p>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">平台链接</p>
+              <div className="space-y-0.5">
+                {linkEntries.map(([platform, url]) => (
+                  <p key={platform} className="text-foreground">
+                    <span className="text-muted-foreground w-14 inline-block capitalize">{platformLabels[platform] || platform}</span>
+                    <a href={url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-600 hover:underline truncate max-w-[140px] inline-block align-bottom">{url.replace(/^https?:\/\//, '')}</a>
+                  </p>
+                ))}
+              </div>
             </div>
           )}
 
+          {/* 备注（卡片未展示） */}
           {supplier.notes && (
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-1">备注</p>
