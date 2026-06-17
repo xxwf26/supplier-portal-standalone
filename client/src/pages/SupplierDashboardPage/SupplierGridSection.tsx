@@ -149,7 +149,7 @@ const SupplierCard = React.memo(function SupplierCard({
       onClick={() => onSelect(supplier)}
       className={cn(
         'group relative cursor-pointer overflow-hidden rounded-xl border bg-card flex flex-col',
-        'border-border shadow-sm h-[300px]',
+        'border-border shadow-sm h-[340px]',
         'hover:border-primary/30 hover:shadow-md',
         'transition-shadow duration-200',
         isSelected && 'ring-2 ring-primary border-primary/30'
@@ -188,7 +188,7 @@ const SupplierCard = React.memo(function SupplierCard({
       </div>
 
       {/* Card Content — 固定剩余高度 */}
-      <div className="flex-1 overflow-hidden p-2.5 flex flex-col gap-1 min-h-0">
+      <div className="flex-1 overflow-hidden p-3 flex flex-col gap-2 min-h-0">
         {/* 名称 + URL 状态 */}
         <div className="flex items-center justify-between gap-1.5">
           <h3 className="flex-1 text-sm font-bold text-foreground truncate">
