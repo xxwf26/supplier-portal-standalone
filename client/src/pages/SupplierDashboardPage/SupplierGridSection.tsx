@@ -289,24 +289,32 @@ export default React.memo(function SupplierGridSection({
   selectedIds = new Set<string>(),
   onToggleSelect,
   viewMode = 'pc',
+  columns = 0,
 }: {
   suppliers: IProcessedSupplier[];
   onSelect: (supplier: IProcessedSupplier) => void;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   viewMode?: 'pc' | 'mobile';
+  columns?: number; // 0 = 自动响应式
 }) {
+  const gridClass = (() => {
+    if (viewMode === 'mobile') return 'grid grid-cols-2 gap-3';
+    if (columns === 1) return 'grid grid-cols-1 gap-4';
+    if (columns === 2) return 'grid grid-cols-2 gap-4';
+    if (columns === 3) return 'grid grid-cols-3 gap-4';
+    if (columns === 4) return 'grid grid-cols-4 gap-4';
+    if (columns === 5) return 'grid grid-cols-5 gap-3';
+    if (columns === 6) return 'grid grid-cols-6 gap-3';
+    return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+  })();
   return (
     <section className="w-full">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2 }}
-        className={
-          viewMode === 'mobile'
-            ? 'grid grid-cols-2 gap-3'
-            : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-        }
+        className={gridClass}
       >
         {suppliers.map((supplier) => (
           <SupplierCard

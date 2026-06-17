@@ -151,6 +151,15 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   const [sortKey, setSortKey] = useState<SortKey>('default');
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [filterResetKey, setFilterResetKey] = useState(0);
+  const [gridColumns, setGridColumns] = useState<number>(() => {
+    const saved = localStorage.getItem('__grid_columns');
+    return saved ? Number(saved) : 0;
+  });
+
+  const handleGridColumns = (cols: number) => {
+    setGridColumns(cols);
+    localStorage.setItem('__grid_columns', String(cols));
+  };
 
   const { isAdmin } = useAuth();
 
@@ -454,6 +463,24 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
           ))}
         </SelectContent>
       </Select>
+
+      {/* 列数切换（仅 PC 模式） */}
+      <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5 shrink-0">
+        {[0, 2, 3, 4, 5].map(n => (
+          <button
+            key={n}
+            title={n === 0 ? '自动' : `${n}列`}
+            onClick={() => handleGridColumns(n)}
+            className={`h-7 px-2 rounded text-xs font-medium transition-colors ${
+              gridColumns === n
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {n === 0 ? '自动' : n}
+          </button>
+        ))}
+      </div>
     </>
   );
 
@@ -527,6 +554,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
                 viewMode="pc"
+                columns={gridColumns}
               />
             )}
           </main>
