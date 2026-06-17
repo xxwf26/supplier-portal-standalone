@@ -268,6 +268,31 @@ export default function SupplierDetailModal({
   const [entityTypeVal, setEntityTypeVal] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
   const [uploading, setUploading] = useState(false);
+
+  // 备注快捷模板
+  const PRESET_NOTES = ['试稿未通过', '绘制沟通情况', '预警', '档期满', '价格偏高', '质量不稳定'];
+  const [customNotes, setCustomNotes] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('__notes_templates') || '[]'); } catch { return []; }
+  });
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
+  const appendNote = (text: string) => {
+    setContactInfoText(prev => prev ? `${prev}\n${text}` : text);
+  };
+  const saveCustomNote = () => {
+    const t = noteInput.trim();
+    if (!t) return;
+    const next = [...customNotes, t];
+    setCustomNotes(next);
+    try { localStorage.setItem('__notes_templates', JSON.stringify(next)); } catch {}
+    setNoteInput('');
+    setShowNoteInput(false);
+  };
+  const removeCustomNote = (idx: number) => {
+    const next = customNotes.filter((_, i) => i !== idx);
+    setCustomNotes(next);
+    try { localStorage.setItem('__notes_templates', JSON.stringify(next)); } catch {}
+  };
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -1250,13 +1275,49 @@ export default function SupplierDetailModal({
               </div>
               <div className={moduleBody}>
                 {isEditing ? (
-                  <LimitedTextarea
-                    value={contactInfoText}
-                    onChange={setContactInfoText}
-                    placeholder="特殊要求等"
-                    className="text-xs"
-                    minHeight="min-h-[120px]"
-                  />
+                  <div className="space-y-2">
+                    {/* 快捷模板标签 */}
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      {PRESET_NOTES.map(t => (
+                        <button key={t} type="button" onClick={() => appendNote(t)}
+                          className="px-2 py-0.5 rounded-full text-[11px] bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary border border-border hover:border-primary/30 transition-colors">
+                          {t}
+                        </button>
+                      ))}
+                      {customNotes.map((t, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-blue-50 text-blue-700 border border-blue-200">
+                          <button type="button" onClick={() => appendNote(t)} className="hover:underline">{t}</button>
+                          <button type="button" onClick={() => removeCustomNote(i)} className="opacity-50 hover:opacity-100 text-[10px] leading-none">×</button>
+                        </span>
+                      ))}
+                      {showNoteInput ? (
+                        <span className="inline-flex items-center gap-1">
+                          <input
+                            autoFocus
+                            value={noteInput}
+                            onChange={e => setNoteInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveCustomNote(); if (e.key === 'Escape') { setShowNoteInput(false); setNoteInput(''); } }}
+                            placeholder="输入常用语"
+                            className="h-6 px-2 text-[11px] border rounded-full w-24 outline-none focus:border-primary"
+                          />
+                          <button type="button" onClick={saveCustomNote} className="text-[11px] text-primary hover:underline">保存</button>
+                          <button type="button" onClick={() => { setShowNoteInput(false); setNoteInput(''); }} className="text-[11px] text-muted-foreground hover:text-foreground">取消</button>
+                        </span>
+                      ) : (
+                        <button type="button" onClick={() => setShowNoteInput(true)}
+                          className="px-2 py-0.5 rounded-full text-[11px] border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                          ＋ 添加常用语
+                        </button>
+                      )}
+                    </div>
+                    <LimitedTextarea
+                      value={contactInfoText}
+                      onChange={setContactInfoText}
+                      placeholder="特殊要求等"
+                      className="text-xs"
+                      minHeight="min-h-[100px]"
+                    />
+                  </div>
                 ) : (
                   supplier.contactInfo ? (
                     <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
