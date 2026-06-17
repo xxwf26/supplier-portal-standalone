@@ -99,6 +99,10 @@ export class ConfigService {
   }
 
   async create(data: { category: string; label: string; value?: string; color?: string; note?: string; sort_order?: number }) {
+    // 供应商类型为固定字段，暂不支持新增/删除
+    if (data.category === 'supplierType') {
+      throw new BadRequestException('供应商类型为固定字段，暂不支持新增或删除');
+    }
     const id = crypto.randomUUID();
     // style/cooperationType/project：value 始终等于 label；其余用传入的 value（功能码）
     const value = LABEL_AS_VALUE.has(data.category) ? data.label : (data.value ?? data.label);
@@ -142,6 +146,11 @@ export class ConfigService {
   async delete(id: string) {
     const [current] = await this.db.select().from(filterConfig).where(eq(filterConfig.id, id));
     if (!current) return { success: true }; // 已不存在，视为成功
+
+    // 供应商类型为固定字段，暂不支持删除
+    if (current.category === 'supplierType') {
+      throw new BadRequestException('供应商类型为固定字段，暂不支持新增或删除');
+    }
 
     // 禁止删除：有画师在用该选项则拒绝，并列出名单
     const inUse = await this.findSuppliersUsingOption(current.category, current.value);

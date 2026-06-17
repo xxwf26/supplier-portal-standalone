@@ -17,8 +17,9 @@ const COLORS = [
 ];
 
 function errMsg(e: unknown, fallback: string): string {
-  const anyE = e as { response?: { data?: { message?: string } } };
-  return anyE?.response?.data?.message || fallback;
+  const anyE = e as { response?: { data?: { message?: string; error?: { message?: string } } } };
+  // 后端全局异常过滤器把信息包在 data.error.message；兼容 data.message
+  return anyE?.response?.data?.error?.message || anyE?.response?.data?.message || fallback;
 }
 
 export default function SystemConfigPage() {
@@ -60,6 +61,9 @@ function ConfigManager() {
 
   const items = config[activeTab] || [];
   const isStyle = activeTab === 'style';
+  // 供应商类型为固定项：暂不支持增删（仅允许改名/备注）
+  const isLocked = activeTab === 'supplierType';
+  const LOCKED_MSG = '供应商类型为固定字段，暂不支持新增或删除';
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editNote, setEditNote] = useState('');
@@ -87,6 +91,7 @@ function ConfigManager() {
   };
 
   const addItem = async () => {
+    if (isLocked) { alert(LOCKED_MSG); return; }
     if (!newLabel.trim()) return;
     setBusy(true);
     try {
@@ -106,6 +111,7 @@ function ConfigManager() {
   };
 
   const deleteItem = async (item: IFilterOption) => {
+    if (isLocked) { alert(LOCKED_MSG); return; }
     if (!confirm(`确认删除「${item.label}」？`)) return;
     setBusy(true);
     try {
@@ -175,9 +181,11 @@ function ConfigManager() {
                     <button onClick={() => startEdit(item)} className="ml-auto px-2 py-1 bg-primary text-white rounded text-xs font-medium hover:opacity-80">
                       编辑
                     </button>
-                    <button onClick={() => deleteItem(item)} disabled={busy} className="px-2 py-1 border border-red-200 text-red-600 rounded text-xs hover:bg-red-50 disabled:opacity-50">
-                      删除
-                    </button>
+                    {!isLocked && (
+                      <button onClick={() => deleteItem(item)} disabled={busy} className="px-2 py-1 border border-red-200 text-red-600 rounded text-xs hover:bg-red-50 disabled:opacity-50">
+                        删除
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -186,19 +194,25 @@ function ConfigManager() {
 
           {items.length === 0 && <div className="text-center py-8 text-muted-foreground bg-white rounded-lg border">暂无数据</div>}
 
-          <div className="flex items-center gap-2 bg-white border-2 border-dashed border-primary/30 rounded-lg px-4 py-3">
-            <input placeholder="标签名" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
-            <input placeholder="备注（可选，仅本页可见）" value={newNote} onChange={e => setNewNote(e.target.value)} className="border rounded px-2 py-1 text-sm w-44" />
-            {isStyle && (
-              <select value={newColor} onChange={e => setNewColor(e.target.value)} className="border rounded px-2 py-1 text-sm">
-                <option value="">颜色</option>
-                {COLORS.map(c => <option key={c.v} value={c.v}>{c.n}</option>)}
-              </select>
-            )}
-            <button onClick={addItem} disabled={busy} className="px-3 py-1 bg-primary text-white rounded text-sm font-medium hover:opacity-80 disabled:opacity-50">
-              + 新增
-            </button>
-          </div>
+          {isLocked ? (
+            <div className="text-center py-3 text-xs text-muted-foreground bg-muted/40 rounded-lg border border-dashed">
+              {LOCKED_MSG}（可改名 / 备注）
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-white border-2 border-dashed border-primary/30 rounded-lg px-4 py-3">
+              <input placeholder="标签名" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
+              <input placeholder="备注（可选，仅本页可见）" value={newNote} onChange={e => setNewNote(e.target.value)} className="border rounded px-2 py-1 text-sm w-44" />
+              {isStyle && (
+                <select value={newColor} onChange={e => setNewColor(e.target.value)} className="border rounded px-2 py-1 text-sm">
+                  <option value="">颜色</option>
+                  {COLORS.map(c => <option key={c.v} value={c.v}>{c.n}</option>)}
+                </select>
+              )}
+              <button onClick={addItem} disabled={busy} className="px-3 py-1 bg-primary text-white rounded text-sm font-medium hover:opacity-80 disabled:opacity-50">
+                + 新增
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
