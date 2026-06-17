@@ -466,7 +466,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
 
       {/* 列数切换（仅 PC 模式） */}
       <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5 shrink-0">
-        {[0, 2, 3, 4, 5].map(n => (
+        {[0, 1, 2, 3, 4, 5, 6].map(n => (
           <button
             key={n}
             title={n === 0 ? '自动' : `${n}列`}
