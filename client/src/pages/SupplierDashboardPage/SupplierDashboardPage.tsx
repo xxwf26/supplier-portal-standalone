@@ -174,7 +174,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
       currentFilters.styles.length +
       currentFilters.status.length +
       currentFilters.projects.length +
-      (currentFilters.priceRange[0] !== 0 || currentFilters.priceRange[1] !== 10000 ? 1 : 0)
+      (currentFilters.priceRange[0] !== 0 || currentFilters.priceRange[1] !== 10000 || currentFilters.priceUnset ? 1 : 0)
     );
   }, [currentFilters]);
 
@@ -219,14 +219,16 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
       );
     }
 
-    // 价格过滤：仅当用户主动调整滑块（偏离默认 [0,10000]）时才生效
-    if (currentFilters.priceRange[0] > 0 || currentFilters.priceRange[1] < 10000) {
-      result = result.filter(
-        (s) =>
-          (s.priceRange[0] === 0 && s.priceRange[1] === 0) || // 无报价数据不过滤
-          (s.priceRange[0] >= currentFilters.priceRange[0] &&
-           s.priceRange[1] <= currentFilters.priceRange[1])
-      );
+    // 价格过滤：滑块偏离默认 或 勾选了「未填写报价」时才生效
+    const priceSliderActive = currentFilters.priceRange[0] > 0 || currentFilters.priceRange[1] < 10000;
+    if (priceSliderActive || currentFilters.priceUnset) {
+      result = result.filter((s) => {
+        const noPrice = s.priceRange[0] === 0 && s.priceRange[1] === 0;
+        if (noPrice) return currentFilters.priceUnset; // 无报价：仅在勾选「未填写」时显示
+        if (!priceSliderActive) return true;            // 有报价且滑块未动：显示
+        return s.priceRange[0] >= currentFilters.priceRange[0] &&
+               s.priceRange[1] <= currentFilters.priceRange[1];
+      });
     }
 
     return result;
