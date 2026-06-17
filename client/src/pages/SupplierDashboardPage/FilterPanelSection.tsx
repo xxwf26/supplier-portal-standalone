@@ -10,6 +10,7 @@ export interface IFilterState {
   cooperationTypes: string[];
   styles: string[];
   priceRange: [number, number];
+  priceUnset: boolean;
   status: string[];
   projects: string[];
   keyword: string;
@@ -118,6 +119,7 @@ export default function FilterPanelSection({
     cooperationTypes: [],
     styles: [],
     priceRange: [0, 10000],
+    priceUnset: false,
     status: [],
     projects: [],
     keyword: '',
@@ -155,12 +157,12 @@ export default function FilterPanelSection({
   };
 
   const clearFilters = () => {
-    setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [0, 10000], status: [], projects: [], keyword: '' });
+    setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [0, 10000], priceUnset: false, status: [], projects: [], keyword: '' });
   };
 
   const hasActiveFilters = filters.types.length > 0 || filters.cooperationTypes.length > 0 ||
     filters.styles.length > 0 || filters.status.length > 0 || filters.projects.length > 0 ||
-    filters.keyword !== '' || filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000;
+    filters.keyword !== '' || filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000 || filters.priceUnset;
 
   const activeFilterCount =
     filters.types.length +
@@ -169,7 +171,7 @@ export default function FilterPanelSection({
     filters.status.length +
     filters.projects.length +
     (filters.keyword !== '' ? 1 : 0) +
-    (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000 ? 1 : 0);
+    (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000 || filters.priceUnset ? 1 : 0);
 
   const content = (
     <>
@@ -258,6 +260,12 @@ export default function FilterPanelSection({
               </span>
             </div>
             <Slider value={filters.priceRange} onValueChange={handlePriceChange} min={0} max={10000} step={100} />
+            <CheckRow
+              checked={filters.priceUnset}
+              onToggle={() => setFilters(prev => ({ ...prev, priceUnset: !prev.priceUnset }))}
+              label="未填写报价"
+              muted
+            />
           </div>
         </Section>
 
