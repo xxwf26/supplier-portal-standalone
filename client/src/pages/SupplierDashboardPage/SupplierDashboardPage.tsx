@@ -240,11 +240,15 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
 
     const kw = normalizeForSearch(keyword.trim());
     if (kw) {
-      result = result.filter(
-        (s) =>
-          normalizeForSearch(s.name).includes(kw) ||
-          (s.notes && normalizeForSearch(s.notes).includes(kw))
-      );
+      result = result.filter((s) => {
+        if (normalizeForSearch(s.name).includes(kw)) return true;
+        if (s.notes && normalizeForSearch(s.notes).includes(kw)) return true;
+        // 搜索结构化联系方式（微信/QQ/电话）
+        if (s.contactItems?.some(c => c.value.toLowerCase().includes(kw))) return true;
+        // 搜索平台链接
+        if (s.links && Object.values(s.links).some(v => v.toLowerCase().includes(kw))) return true;
+        return false;
+      });
     }
 
     if (sortKey !== 'default') {

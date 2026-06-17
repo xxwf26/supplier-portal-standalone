@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import {
   AwardIcon,
   Building2Icon,
@@ -144,11 +145,20 @@ const SupplierCard = React.memo(function SupplierCard({
     ? supplier.priceItems.map((p) => `${p.cooperationType} ${p.unitPrice}${p.priceUnit}`).join(' | ')
     : '';
 
+  const contactTypeLabel: Record<string, string> = { wechat: '微信', qq: 'QQ', phone: '电话' };
+  const priceText = supplier.priceItems && supplier.priceItems.length > 0
+    ? supplier.priceItems.map((p) => `${p.cooperationType} ${p.unitPrice}${p.priceUnit}`).join('\n')
+    : null;
+  const hasPreviewContent = (supplier.contactItems && supplier.contactItems.length > 0)
+    || priceText || supplier.notes;
+
   return (
-    <motion.div
-      whileHover={{
-        scale: 1.02,
-        y: -4,
+    <HoverCard openDelay={400} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <motion.div
+          whileHover={{
+            scale: 1.02,
+            y: -4,
         transition: { duration: 0.15 },
       }}
       whileTap={{ scale: 0.98 }}
@@ -259,6 +269,42 @@ const SupplierCard = React.memo(function SupplierCard({
         )}
       </div>
     </motion.div>
+      </HoverCardTrigger>
+
+      {hasPreviewContent && (
+        <HoverCardContent side="right" align="start" className="w-64 p-3 space-y-2.5 text-xs">
+          <p className="font-semibold text-sm text-foreground truncate">{supplier.name}</p>
+
+          {supplier.contactItems && supplier.contactItems.length > 0 && (
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">联系方式</p>
+              <div className="space-y-0.5">
+                {supplier.contactItems.map((c, i) => (
+                  <p key={i} className="text-foreground">
+                    <span className="text-muted-foreground w-8 inline-block">{contactTypeLabel[c.type] || c.type}</span>
+                    {c.value}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {priceText && (
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">报价参考</p>
+              <p className="text-foreground whitespace-pre-line">{priceText}</p>
+            </div>
+          )}
+
+          {supplier.notes && (
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-1">备注</p>
+              <p className="text-muted-foreground line-clamp-4 leading-relaxed">{supplier.notes}</p>
+            </div>
+          )}
+        </HoverCardContent>
+      )}
+    </HoverCard>
   );
 });
 
