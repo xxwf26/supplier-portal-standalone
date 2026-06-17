@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { supplierApi } from '@/api/supplier';
 import { logger } from '@/lib/polyfills/logger';
+import { normalizeSupplierType } from '@/lib/supplierUtils';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -117,6 +118,13 @@ function mapRow(row: Record<string, unknown>, columnMaps: ColumnMap[]): Partial<
   if (result.isInStock !== undefined) {
     const v = String(result.isInStock).toLowerCase();
     result.isInStock = v === '是' || v === 'true' || v === '1' || v === 'yes';
+  }
+  // 供应商类型归一化：导入的任意写法统一到 4 种中文全称，杜绝脏值入库
+  if (result.supplierType !== undefined) {
+    result.supplierType = normalizeSupplierType(
+      String(result.supplierType),
+      String(result.accountName || ''),
+    );
   }
 
   return result;

@@ -11,9 +11,6 @@ const statusLabelMap: Record<string, string> = {
 const statusColorMap: Record<string, string> = {
   in_stock: '#16a34a', outreach: '#2563eb', blacklisted: '#6b7280',
 };
-const typeLabelMap: Record<string, string> = {
-  individual: '个人画师', artist: '艺术家', studio: '工作室', company: '公司',
-};
 const contactTypeLabels: Record<string, string> = {
   wechat: '微信', qq: 'QQ', phone: '电话',
 };
@@ -57,7 +54,7 @@ function buildSupplierCard(
 ): string {
   const statusLabel = statusLabelMap[s.status] || s.status;
   const statusColor = statusColorMap[s.status] || '#6b7280';
-  const typeLabel = typeLabelMap[s.type] || s.type;
+  const typeLabel = s.type;
 
   const stars = Array.from({ length: 5 })
     .map((_, i) =>

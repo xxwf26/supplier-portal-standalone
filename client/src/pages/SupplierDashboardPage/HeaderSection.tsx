@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { UsersIcon, UserIcon, Building2Icon, BuildingIcon, ActivityIcon } from 'lucide-react';
+import { UsersIcon, UserIcon, Building2Icon, BuildingIcon, ActivityIcon, AwardIcon } from 'lucide-react';
 import { supplierApi } from '@/api/supplier';
 import { ISupplierStatistics } from '@/api/types';
 import { logger } from '@/lib/polyfills/logger';
@@ -37,6 +37,8 @@ export default function HeaderSection({ viewMode = 'pc' }: HeaderSectionProps) {
   const [stats, setStats] = useState<ISupplierStatistics>({
     total: 0,
     individualCount: 0,
+    artistCount: 0,
+    studioCount: 0,
     companyCount: 0,
     activeCount: 0,
     categoryCount: {},
@@ -70,14 +72,13 @@ export default function HeaderSection({ viewMode = 'pc' }: HeaderSectionProps) {
     },
   };
 
-  const studioCount = stats.total - (stats.individualCount + stats.companyCount);
-
   const statCards = [
     { icon: <UsersIcon className="w-5 h-5 text-white" />, label: '供应商总数', value: loading ? 0 : stats.total, delay: 0.1 },
     { icon: <UserIcon className="w-5 h-5 text-white" />, label: '个人画师', value: loading ? 0 : stats.individualCount, delay: 0.2 },
-    { icon: <BuildingIcon className="w-5 h-5 text-white" />, label: '工作室', value: loading ? 0 : studioCount, delay: 0.3 },
-    { icon: <Building2Icon className="w-5 h-5 text-white" />, label: '公司', value: loading ? 0 : stats.companyCount, delay: 0.4 },
-    { icon: <ActivityIcon className="w-5 h-5 text-white" />, label: '库内合作供应商', value: loading ? 0 : stats.activeCount, delay: 0.5 },
+    { icon: <AwardIcon className="w-5 h-5 text-white" />, label: '艺术家', value: loading ? 0 : stats.artistCount, delay: 0.3 },
+    { icon: <BuildingIcon className="w-5 h-5 text-white" />, label: '工作室', value: loading ? 0 : stats.studioCount, delay: 0.4 },
+    { icon: <Building2Icon className="w-5 h-5 text-white" />, label: '公司', value: loading ? 0 : stats.companyCount, delay: 0.5 },
+    { icon: <ActivityIcon className="w-5 h-5 text-white" />, label: '库内合作供应商', value: loading ? 0 : stats.activeCount, delay: 0.6 },
   ];
 
   return (

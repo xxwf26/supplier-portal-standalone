@@ -25,7 +25,6 @@ import { cn } from '@/lib/utils';
 import { logger } from '@/lib/polyfills/logger';
 import { toast } from 'sonner';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
-import { supplierTypeToBackend } from '@/lib/filterConfig';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
 
 const PRICE_UNIT_OPTIONS = [
@@ -90,7 +89,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
 
   // 动态选项
   const supplierTypeOptions = filterConfig.supplierType.map((o) => ({
-    value: o.label, // 用 label 推算后端值
+    value: o.label, // 直接存中文全称
     label: o.label,
   }));
   const cooperationTypeOptions = filterConfig.cooperationType.map((o) => ({
@@ -332,7 +331,7 @@ export default function NewSupplierModal({ open, onClose, onCreated }: NewSuppli
 
       await supplierApi.create({
         accountName: accountName.trim(),
-        supplierType: supplierType ? supplierTypeToBackend(supplierType) : undefined,
+        supplierType: supplierType || undefined,
         cooperationType: cooperationTypes.length > 0 ? cooperationTypes.join('、') : undefined,
         contactInfo: contactInfo || undefined,
         entityType: entityType || undefined,
