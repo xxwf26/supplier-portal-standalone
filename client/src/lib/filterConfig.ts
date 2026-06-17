@@ -82,7 +82,7 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
 export const CATEGORY_LABELS: Record<string, string> = {
   supplierType: '供应商类型',
   cooperationType: '合作类型',
-  style: '细分风格',
+  style: '擅长风格',
   cooperationStatus: '合作状态',
   project: '所属项目',
 };

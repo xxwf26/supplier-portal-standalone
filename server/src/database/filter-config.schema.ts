@@ -7,6 +7,7 @@ export const filterConfig = mysqlTable('filter_config', {
   label: varchar('label', { length: 100 }).notNull(),
   value: varchar('value', { length: 100 }).notNull(),
   color: varchar('color', { length: 30 }),
+  note: varchar('note', { length: 255 }),
   sortOrder: int('sort_order').default(0),
   enabled: boolean('enabled').default(true),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
