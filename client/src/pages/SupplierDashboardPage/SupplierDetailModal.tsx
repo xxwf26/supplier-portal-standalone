@@ -240,8 +240,6 @@ export default function SupplierDetailModal({
     value: o.value,
     label: o.label,
   }));
-  // 合作类型：配置中未被选中的选项（用于显示"可添加"列表）
-  const availableCoopTypes = cooperationTypeOptions.filter(o => !cooperationTypeVal.includes(o.value));
   const stylePresets = filterConfig.style.map((o) => o.value);
   const projectOptions = filterConfig.project.map((o) => o.value);
 
@@ -660,6 +658,7 @@ export default function SupplierDetailModal({
   };
 
   const availablePresets = stylePresets.filter((p: string) => !styleTags.includes(p));
+  const availableCoopTypes = cooperationTypeOptions.filter(o => !cooperationTypeVal.includes(o.value));
 
   const moduleBase = 'rounded-xl border border-border/60 bg-card overflow-hidden';
   const moduleHeader = 'flex items-center gap-1.5 px-3 py-2 bg-muted/40 border-b border-border/40';
