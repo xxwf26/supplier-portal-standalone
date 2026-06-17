@@ -366,6 +366,7 @@ export class SupplierService {
 
     const total = all.length;
     const individualCount = all.filter(s => s.supplierType === '个人').length;
+    const artistCount = all.filter(s => s.supplierType === '艺术家').length;
     const companyCount = all.filter(s =>
       s.supplierType === '公司' || s.supplierType === '个体工商户' || s.supplierType === '一般企业'
     ).length;
@@ -389,6 +390,7 @@ export class SupplierService {
     return {
       total,
       individualCount,
+      artistCount,
       companyCount,
       studioCount,
       activeCount,

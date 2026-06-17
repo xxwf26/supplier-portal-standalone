@@ -58,6 +58,7 @@ export interface ISupplierListResponse {
 export interface ISupplierStatistics {
   total: number;
   individualCount: number;
+  artistCount: number;
   companyCount: number;
   studioCount: number;
   activeCount: number;
