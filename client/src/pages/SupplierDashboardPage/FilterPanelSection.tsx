@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
+import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 export interface IFilterState {
@@ -96,6 +97,7 @@ export default function FilterPanelSection({
   mode?: 'sidebar' | 'sheet';
 }) {
   const filterConfig = useFilterOptions();
+  const { isAdmin } = useAuth();
 
   // 从 hook 动态获取选项
   const typeOptions = filterConfig.supplierType.map((o) => ({ value: o.value, label: o.label }));
@@ -259,7 +261,8 @@ export default function FilterPanelSection({
           </div>
         </Section>
 
-        {/* 合作状态 */}
+        {/* 合作状态 — 仅管理员可见 */}
+        {isAdmin && (
         <Section title="合作状态">
           <div className="space-y-0.5">
             {statusOptions.map(option => (
@@ -273,6 +276,7 @@ export default function FilterPanelSection({
             ))}
           </div>
         </Section>
+        )}
 
         {/* 所属项目 */}
         <Section title="所属项目">
