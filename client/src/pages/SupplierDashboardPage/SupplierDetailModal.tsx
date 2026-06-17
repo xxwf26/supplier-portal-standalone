@@ -1000,18 +1000,20 @@ export default function SupplierDetailModal({
                 </div>
                 <div className={moduleBody}>
                   {isEditing ? (
-                    <div className="space-y-1 max-h-[180px] overflow-y-auto">
+                    <div className="flex flex-wrap gap-1.5">
                       {cooperationTypeOptions.map((opt) => (
-                        <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer group">
-                          <Checkbox
-                            checked={cooperationTypeVal.includes(opt.value)}
-                            onCheckedChange={() => toggleCooperationType(opt.value)}
-                            className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                          />
-                          <span className="text-xs text-foreground group-hover:text-primary transition-colors">
-                            {opt.label}
-                          </span>
-                        </label>
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => toggleCooperationType(opt.value)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 ${
+                            cooperationTypeVal.includes(opt.value)
+                              ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
                       ))}
                     </div>
                   ) : (
