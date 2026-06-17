@@ -148,8 +148,8 @@ const SupplierCard = React.memo(function SupplierCard({
       whileTap={{ scale: 0.98 }}
       onClick={() => onSelect(supplier)}
       className={cn(
-        'group relative cursor-pointer overflow-hidden rounded-xl border bg-card',
-        'border-border shadow-sm',
+        'group relative cursor-pointer overflow-hidden rounded-xl border bg-card flex flex-col',
+        'border-border shadow-sm h-[300px]',
         'hover:border-primary/30 hover:shadow-md',
         'transition-shadow duration-200',
         isSelected && 'ring-2 ring-primary border-primary/30'
@@ -171,8 +171,8 @@ const SupplierCard = React.memo(function SupplierCard({
         {isSelected && <CheckIcon className="w-3 h-3" />}
       </button>
 
-      {/* Artwork Image */}
-      <div className="relative w-full h-[150px] bg-muted overflow-hidden">
+      {/* Artwork Image — 增加占比 */}
+      <div className="relative w-full flex-shrink-0 bg-muted overflow-hidden" style={{ height: '180px' }}>
         {supplier.works && supplier.works.length > 0 ? (
           <img
             src={supplier.works[0]}
@@ -187,65 +187,48 @@ const SupplierCard = React.memo(function SupplierCard({
         )}
       </div>
 
-      {/* Card Content */}
-      <div className="p-3">
-        {/* Title + URL Status */}
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="flex-1 text-sm font-bold text-foreground line-clamp-1">
+      {/* Card Content — 固定剩余高度 */}
+      <div className="flex-1 overflow-hidden p-2.5 flex flex-col gap-1 min-h-0">
+        {/* 名称 + URL 状态 */}
+        <div className="flex items-center justify-between gap-1.5">
+          <h3 className="flex-1 text-sm font-bold text-foreground truncate">
             {supplier.name}
           </h3>
           <Badge
             variant="outline"
             className={cn(
-              'shrink-0 px-2 py-0 text-[10px] font-medium',
+              'shrink-0 px-1.5 py-0 text-[10px] font-medium',
               hasLinks
                 ? 'bg-blue-50 text-blue-600 border-blue-200'
                 : 'bg-orange-50 text-orange-600 border-orange-200'
             )}
           >
-            {hasLinks ? '已补URL' : '待补URL'}
+            {hasLinks ? '已补' : '待补'}
           </Badge>
         </div>
 
-        {/* Platform · Rating · Frequency */}
-        <div className="mt-1 text-xs text-muted-foreground">
-          {firstPlatform || '未知平台'} · 评分 {supplier.rating ?? '-'} · 频次{' '}
-          {supplier.cooperationCount}
+        {/* 平台 · 评分 · 频次 */}
+        <div className="text-[11px] text-muted-foreground truncate">
+          {firstPlatform || '未知平台'} · 评分 {supplier.rating ?? '-'} · 频次 {supplier.cooperationCount}
         </div>
 
-        {/* Tags */}
-        <div className="mt-2 flex flex-wrap gap-1">
-          <span
-            className={cn(
-              'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
-              typeInfo.color
-            )}
-          >
+        {/* 风格标签（类型 + 品类 + 风格） */}
+        <div className="flex flex-wrap gap-0.5 overflow-hidden" style={{ maxHeight: '34px' }}>
+          <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border', typeInfo.color)}>
             {typeInfo.label}
           </span>
           {supplier.cooperationCategory && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-200">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-200">
               {supplier.cooperationCategory}
             </span>
           )}
-          {supplier.styles.slice(0, 2).map((style) => (
-            <span
-              key={style}
-              className={cn(
-                'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
-                styleColors[style] || 'bg-muted text-muted-foreground border-border'
-              )}
-            >
+          {supplier.styles.slice(0, 3).map((style) => (
+            <span key={style} className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border', styleColors[style] || 'bg-muted text-muted-foreground border-border')}>
               {style}
             </span>
           ))}
           {supplier.status === 'blacklisted' && (
-            <span
-              className={cn(
-                'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
-                statusInfo.color
-              )}
-            >
+            <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border', statusInfo.color)}>
               {supplier.riskStatus}
             </span>
           )}
@@ -253,29 +236,19 @@ const SupplierCard = React.memo(function SupplierCard({
 
         {/* 报价 */}
         {displayPrice && (
-          <div className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+          <div className="text-[11px] text-muted-foreground truncate leading-relaxed">
             {displayPrice}
           </div>
         )}
 
         {/* 联系方式 */}
         {supplier.contactItems && supplier.contactItems.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {supplier.contactItems.map((c, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-gray-50 text-gray-600 border border-gray-200"
-              >
+          <div className="flex flex-wrap gap-0.5 overflow-hidden" style={{ maxHeight: '22px' }}>
+            {supplier.contactItems.slice(0, 2).map((c, i) => (
+              <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-gray-50 text-gray-600 border border-gray-200">
                 {c.type === 'wechat' ? '微信' : c.type === 'qq' ? 'QQ' : '电话'}: {c.value}
               </span>
             ))}
-          </div>
-        )}
-
-        {/* 备注 */}
-        {supplier.notes && (
-          <div className="mt-1.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-            {supplier.notes}
           </div>
         )}
       </div>
