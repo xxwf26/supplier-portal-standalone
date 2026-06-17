@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
-import { DEFAULT_FILTER_CONFIG, CATEGORY_LABELS, STORAGE_KEY, FilterOption } from '@/lib/filterConfig';
+import { CATEGORY_LABELS } from '@/lib/filterConfig';
+import { configApi, IFilterOption } from '@/api/config';
 
 const COLORS = [
   { v: 'blue', n: '蓝', hex: '#3b82f6' }, { v: 'amber', n: '琥珀', hex: '#f59e0b' },
@@ -15,6 +16,11 @@ const COLORS = [
   { v: 'sky', n: '天蓝', hex: '#0ea5e9' }, { v: 'fuchsia', n: '紫红', hex: '#d946ef' },
 ];
 
+function errMsg(e: unknown, fallback: string): string {
+  const anyE = e as { response?: { data?: { message?: string } } };
+  return anyE?.response?.data?.message || fallback;
+}
+
 export default function SystemConfigPage() {
   const { isAdmin } = useAuth();
   if (!isAdmin) return <div className="p-10 text-center text-muted-foreground">仅管理员可访问</div>;
@@ -24,8 +30,8 @@ export default function SystemConfigPage() {
       <div className="max-w-4xl mx-auto p-6">
         <h2 className="text-xl font-bold mb-1">系统配置 - 编辑筛选字段</h2>
         <p className="text-sm text-muted-foreground mb-5">
-          以下展示的是左侧筛选面板当前使用的所有字段和选项。可以编辑、删除、新增。
-          <span className="text-orange-500 ml-2">⚠ 修改后刷新页面即刻生效。</span>
+          以下是左侧筛选面板与详情页共用的所有字段和选项（存储于数据库，全员共享）。可以编辑、删除、新增。
+          <span className="text-orange-500 ml-2">⚠ 修改即刻保存到服务器，刷新页面后所有人生效。</span>
         </p>
         <ConfigManager />
       </div>
@@ -34,61 +40,93 @@ export default function SystemConfigPage() {
 }
 
 function ConfigManager() {
+  const [config, setConfig] = useState<Record<string, IFilterOption[]>>({});
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('supplierType');
-  const [config, setConfig] = useState<Record<string, FilterOption[]>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_FILTER_CONFIG;
-  });
 
-  const saveConfig = (newConfig: Record<string, FilterOption[]>) => {
-    setConfig(newConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newConfig));
-  };
+  const reload = useCallback(async () => {
+    try {
+      const data = await configApi.getAll();
+      setConfig(data || {});
+    } catch {
+      setConfig({});
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
 
   const items = config[activeTab] || [];
   const isStyle = activeTab === 'style';
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editValue, setEditValue] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [newValue, setNewValue] = useState('');
   const [newColor, setNewColor] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const startEdit = (idx: number, item: FilterOption) => {
-    setEditingIdx(idx); setEditLabel(item.label); setEditValue(item.value);
+  const startEdit = (item: IFilterOption) => {
+    setEditingId(item.id); setEditLabel(item.label); setEditValue(item.value);
   };
 
-  const saveEdit = () => {
-    if (editingIdx === null || !editLabel.trim()) return;
-    const newItems = [...items];
-    newItems[editingIdx] = { ...newItems[editingIdx], label: editLabel.trim(), value: editValue.trim() };
-    saveConfig({ ...config, [activeTab]: newItems });
-    setEditingIdx(null);
+  const saveEdit = async () => {
+    if (editingId === null || !editLabel.trim()) return;
+    setBusy(true);
+    try {
+      await configApi.update(editingId, { label: editLabel.trim(), value: editValue.trim() });
+      setEditingId(null);
+      await reload();
+    } catch (e) {
+      alert(errMsg(e, '保存失败'));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const addItem = () => {
+  const addItem = async () => {
     if (!newLabel.trim() || !newValue.trim()) return;
-    const item: FilterOption = { label: newLabel.trim(), value: newValue.trim() };
-    if (newColor) item.color = newColor;
-    saveConfig({ ...config, [activeTab]: [...items, item] });
-    setNewLabel(''); setNewValue(''); setNewColor('');
+    setBusy(true);
+    try {
+      await configApi.create({
+        category: activeTab,
+        label: newLabel.trim(),
+        value: newValue.trim(),
+        ...(newColor ? { color: newColor } : {}),
+      });
+      setNewLabel(''); setNewValue(''); setNewColor('');
+      await reload();
+    } catch (e) {
+      alert(errMsg(e, '新增失败'));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const deleteItem = (idx: number) => {
-    const newItems = items.filter((_, i) => i !== idx);
-    saveConfig({ ...config, [activeTab]: newItems });
+  const deleteItem = async (item: IFilterOption) => {
+    if (!confirm(`确认删除「${item.label}」？`)) return;
+    setBusy(true);
+    try {
+      await configApi.delete(item.id);
+      await reload();
+    } catch (e) {
+      // 阶段2：后端会在有画师使用该选项时拒绝删除并返回使用名单
+      alert(errMsg(e, '删除失败'));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const setColor = (idx: number, color: string) => {
-    const newItems = [...items];
-    newItems[idx] = { ...newItems[idx], color: color || undefined };
-    saveConfig({ ...config, [activeTab]: newItems });
-  };
-
-  const resetToDefault = () => {
-    if (confirm('确认恢复到默认配置？')) {
-      localStorage.removeItem(STORAGE_KEY);
-      setConfig(DEFAULT_FILTER_CONFIG);
+  const setColor = async (item: IFilterOption, color: string) => {
+    setBusy(true);
+    try {
+      await configApi.update(item.id, { color });
+      await reload();
+    } catch (e) {
+      alert(errMsg(e, '更新颜色失败'));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -96,71 +134,72 @@ function ConfigManager() {
     <div>
       <div className="flex gap-1 mb-5 flex-wrap items-center">
         {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-          <button key={key} onClick={() => setActiveTab(key)}
+          <button key={key} onClick={() => { setActiveTab(key); setEditingId(null); }}
             className={`px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === key ? 'bg-primary text-primary-foreground' : 'bg-white border border-border hover:bg-muted'}`}>
             {label}
           </button>
         ))}
-        <button onClick={resetToDefault} className="ml-auto px-3 py-1.5 rounded-md text-sm border border-red-200 text-red-600 hover:bg-red-50">
-          恢复默认
-        </button>
       </div>
 
-      <div className="space-y-2">
-        {items.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-3 bg-white border border-border rounded-lg px-4 py-2.5">
-            {isStyle && (
-              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                {COLORS.map(c => (
-                  <button key={c.v} onClick={() => setColor(idx, c.v)}
-                    style={{ backgroundColor: c.hex }}
-                    className={`w-5 h-5 rounded-full transition-transform hover:scale-125 ${item.color === c.v ? 'ring-2 ring-offset-1 ring-primary scale-125' : 'opacity-50 hover:opacity-100'}`}
-                    title={c.n} />
-                ))}
-              </div>
-            )}
-
-            <div className="flex-1 min-w-0 flex items-center gap-2">
-              {editingIdx === idx ? (
-                <>
-                  <input value={editLabel} onChange={e => setEditLabel(e.target.value)} className="border border-primary rounded px-2 py-1 text-sm w-28" placeholder="标签名" autoFocus />
-                  <input value={editValue} onChange={e => setEditValue(e.target.value)} className="border border-primary rounded px-2 py-1 text-sm w-36" placeholder="值" />
-                  <button onClick={saveEdit} className="px-2 py-1 bg-primary text-white rounded text-xs font-medium">保存</button>
-                  <button onClick={() => setEditingIdx(null)} className="px-2 py-1 border rounded text-xs">取消</button>
-                </>
-              ) : (
-                <>
-                  <span className="text-sm font-medium text-foreground">{item.label}</span>
-                  <span className="text-xs text-muted-foreground">({item.value})</span>
-                  {item.color && <span className="text-[10px] bg-muted px-1 rounded">{item.color}</span>}
-                  <button onClick={() => startEdit(idx, item)} className="ml-auto px-2 py-1 bg-primary text-white rounded text-xs font-medium hover:opacity-80">
-                    编辑
-                  </button>
-                  <button onClick={() => deleteItem(idx)} className="px-2 py-1 border border-red-200 text-red-600 rounded text-xs hover:bg-red-50">
-                    删除
-                  </button>
-                </>
+      {loading ? (
+        <div className="text-center py-10 text-muted-foreground">加载中…</div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div key={item.id} className="flex items-center gap-3 bg-white border border-border rounded-lg px-4 py-2.5">
+              {isStyle && (
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  {COLORS.map(c => (
+                    <button key={c.v} onClick={() => setColor(item, c.v)} disabled={busy}
+                      style={{ backgroundColor: c.hex }}
+                      className={`w-5 h-5 rounded-full transition-transform hover:scale-125 ${item.color === c.v ? 'ring-2 ring-offset-1 ring-primary scale-125' : 'opacity-50 hover:opacity-100'}`}
+                      title={c.n} />
+                  ))}
+                </div>
               )}
+
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                {editingId === item.id ? (
+                  <>
+                    <input value={editLabel} onChange={e => setEditLabel(e.target.value)} className="border border-primary rounded px-2 py-1 text-sm w-28" placeholder="标签名" autoFocus />
+                    <input value={editValue} onChange={e => setEditValue(e.target.value)} className="border border-primary rounded px-2 py-1 text-sm w-36" placeholder="值" />
+                    <button onClick={saveEdit} disabled={busy} className="px-2 py-1 bg-primary text-white rounded text-xs font-medium disabled:opacity-50">保存</button>
+                    <button onClick={() => setEditingId(null)} className="px-2 py-1 border rounded text-xs">取消</button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm font-medium text-foreground">{item.label}</span>
+                    <span className="text-xs text-muted-foreground">({item.value})</span>
+                    {item.color && <span className="text-[10px] bg-muted px-1 rounded">{item.color}</span>}
+                    <button onClick={() => startEdit(item)} className="ml-auto px-2 py-1 bg-primary text-white rounded text-xs font-medium hover:opacity-80">
+                      编辑
+                    </button>
+                    <button onClick={() => deleteItem(item)} disabled={busy} className="px-2 py-1 border border-red-200 text-red-600 rounded text-xs hover:bg-red-50 disabled:opacity-50">
+                      删除
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
+          ))}
+
+          {items.length === 0 && <div className="text-center py-8 text-muted-foreground bg-white rounded-lg border">暂无数据</div>}
+
+          <div className="flex items-center gap-2 bg-white border-2 border-dashed border-primary/30 rounded-lg px-4 py-3">
+            <input placeholder="标签名" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
+            <input placeholder="值" value={newValue} onChange={e => setNewValue(e.target.value)} className="border rounded px-2 py-1 text-sm w-36" />
+            {isStyle && (
+              <select value={newColor} onChange={e => setNewColor(e.target.value)} className="border rounded px-2 py-1 text-sm">
+                <option value="">颜色</option>
+                {COLORS.map(c => <option key={c.v} value={c.v}>{c.n}</option>)}
+              </select>
+            )}
+            <button onClick={addItem} disabled={busy} className="px-3 py-1 bg-primary text-white rounded text-sm font-medium hover:opacity-80 disabled:opacity-50">
+              + 新增
+            </button>
           </div>
-        ))}
-
-        {items.length === 0 && <div className="text-center py-8 text-muted-foreground bg-white rounded-lg border">暂无数据</div>}
-
-        <div className="flex items-center gap-2 bg-white border-2 border-dashed border-primary/30 rounded-lg px-4 py-3">
-          <input placeholder="标签名" value={newLabel} onChange={e => setNewLabel(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
-          <input placeholder="值" value={newValue} onChange={e => setNewValue(e.target.value)} className="border rounded px-2 py-1 text-sm w-36" />
-          {isStyle && (
-            <select value={newColor} onChange={e => setNewColor(e.target.value)} className="border rounded px-2 py-1 text-sm">
-              <option value="">颜色</option>
-              {COLORS.map(c => <option key={c.v} value={c.v}>{c.n}</option>)}
-            </select>
-          )}
-          <button onClick={addItem} className="px-3 py-1 bg-primary text-white rounded text-sm font-medium hover:opacity-80">
-            + 新增
-          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
