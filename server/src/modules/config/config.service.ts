@@ -1,7 +1,36 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException, NotFoundException } from '@nestjs/common';
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
 import { filterConfig } from '../../database/filter-config.schema';
+import { suppliers } from '../../database/schema';
 import { eq, asc } from 'drizzle-orm';
+
+/** 与前端 supplierUtils.inferSupplierType 一致：名字优先，再看存储值 */
+function inferSupplierType(name: string, supplierType: string | null): string {
+  if (name && name.includes('工作室')) return 'studio';
+  if (name && (name.includes('公司') || name.includes('有限') || name.includes('股份'))) return 'company';
+  switch (supplierType) {
+    case '个人': return 'individual';
+    case '艺术家': return 'artist';
+    case '工作室': return 'studio';
+    case '公司':
+    case '个体工商户':
+    case '一般企业': return 'company';
+    default: return 'individual';
+  }
+}
+
+/** 与前端 processSupplier 的状态推导一致 */
+function deriveStatus(isInStock: boolean | null, riskStatus: string | null): string {
+  if (riskStatus === '拉黑') return 'blacklisted';
+  if (isInStock) return 'in_stock';
+  return 'outreach';
+}
+
+/** 多值字段按 / 、 ， 切分（与前端一致，避免 LIKE 误判子串） */
+function splitTags(s: string | null): string[] {
+  if (!s) return [];
+  return s.split(/[/、，]/).map((x) => x.trim()).filter(Boolean);
+}
 
 @Injectable()
 export class ConfigService {
@@ -24,6 +53,48 @@ export class ConfigService {
     return this.db.select().from(filterConfig).where(eq(filterConfig.category, category)).orderBy(asc(filterConfig.sortOrder));
   }
 
+  /** 统计有多少画师正在使用某分类下的某个选项值，返回其名称列表 */
+  private async findSuppliersUsingOption(category: string, value: string): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        accountName: suppliers.accountName,
+        supplierType: suppliers.supplierType,
+        cooperationType: suppliers.cooperationType,
+        subCategory: suppliers.subCategory,
+        isInStock: suppliers.isInStock,
+        riskStatus: suppliers.riskStatus,
+        entityType: suppliers.entityType,
+        contractEntity: suppliers.contractEntity,
+      })
+      .from(suppliers);
+
+    const used = (s: (typeof rows)[number]): boolean => {
+      switch (category) {
+        case 'supplierType':
+          return inferSupplierType(s.accountName || '', s.supplierType) === value;
+        case 'cooperationType':
+          return splitTags(s.cooperationType).includes(value);
+        case 'style':
+          return splitTags(s.subCategory).includes(value);
+        case 'cooperationStatus':
+          return deriveStatus(s.isInStock, s.riskStatus) === value;
+        case 'project':
+          return [s.entityType, s.contractEntity].filter(Boolean).includes(value);
+        default:
+          return false;
+      }
+    };
+
+    return rows.filter(used).map((s) => s.accountName).filter(Boolean) as string[];
+  }
+
+  /** 构造"被 N 个画师使用"的拒绝信息（最多列举 5 个名字） */
+  private buildInUseMessage(label: string, names: string[], action: string): string {
+    const shown = names.slice(0, 5).join('、');
+    const more = names.length > 5 ? ` 等 ${names.length} 个` : '';
+    return `「${label}」正被 ${names.length} 个画师使用（${shown}${more}），请先修改这些画师后再${action}`;
+  }
+
   async create(data: { category: string; label: string; value: string; color?: string; sort_order?: number }) {
     const id = crypto.randomUUID();
     await this.db.insert(filterConfig).values({
@@ -34,6 +105,17 @@ export class ConfigService {
   }
 
   async update(id: string, data: { label?: string; value?: string; color?: string; sort_order?: number; enabled?: boolean }) {
+    const [current] = await this.db.select().from(filterConfig).where(eq(filterConfig.id, id));
+    if (!current) throw new NotFoundException('配置项不存在');
+
+    // 引用保护：改 value 等于"删旧值"，会让引用旧值的画师变孤儿 → 有画师在用时禁止改 value
+    if (data.value !== undefined && data.value !== current.value) {
+      const inUse = await this.findSuppliersUsingOption(current.category, current.value);
+      if (inUse.length > 0) {
+        throw new BadRequestException(this.buildInUseMessage(current.label, inUse, '修改取值'));
+      }
+    }
+
     const updateData: Record<string, unknown> = {};
     if (data.label !== undefined) updateData.label = data.label;
     if (data.value !== undefined) updateData.value = data.value;
@@ -45,6 +127,15 @@ export class ConfigService {
   }
 
   async delete(id: string) {
+    const [current] = await this.db.select().from(filterConfig).where(eq(filterConfig.id, id));
+    if (!current) return { success: true }; // 已不存在，视为成功
+
+    // 禁止删除：有画师在用该选项则拒绝，并列出名单
+    const inUse = await this.findSuppliersUsingOption(current.category, current.value);
+    if (inUse.length > 0) {
+      throw new BadRequestException(this.buildInUseMessage(current.label, inUse, '删除'));
+    }
+
     await this.db.delete(filterConfig).where(eq(filterConfig.id, id));
     return { success: true };
   }
