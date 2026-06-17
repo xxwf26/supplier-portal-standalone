@@ -93,7 +93,7 @@ export class SupplierService {
       priceItems: data.priceItems || [],
       cooperationCount: this.clampCount(data.cooperationCount),
       rating: this.clampRating(data.rating),
-      riskStatus: data.riskStatus || '暂无',
+      riskStatus: data.riskStatus || '未填写',
       isInStock: data.isInStock ?? true,
       entityType: data.entityType || null,
       contractEntity: data.contractEntity || null,
@@ -382,7 +382,7 @@ export class SupplierService {
 
     const riskCount: Record<string, number> = {};
     all.forEach(s => {
-      const status = s.riskStatus || '暂无';
+      const status = s.riskStatus || '未填写';
       riskCount[status] = (riskCount[status] || 0) + 1;
     });
 

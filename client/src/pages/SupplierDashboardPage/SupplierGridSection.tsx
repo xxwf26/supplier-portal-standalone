@@ -26,7 +26,7 @@ export interface IProcessedSupplier {
   priceText: string | null;
   priceItems: IPriceItem[];
   contactItems: IContactItem[];
-  status: 'in_stock' | 'outreach' | 'blacklisted';
+  status: 'in_stock' | 'outreach' | 'blacklisted' | 'unset';
   project: string[];
   contacts?: {
     wechat?: string;
@@ -78,6 +78,10 @@ const statusConfig = {
   blacklisted: {
     label: '已拉黑',
     color: 'bg-gray-50 text-gray-500 border-gray-200',
+  },
+  unset: {
+    label: '未填写',
+    color: 'bg-orange-50 text-orange-500 border-orange-200',
   },
 };
 

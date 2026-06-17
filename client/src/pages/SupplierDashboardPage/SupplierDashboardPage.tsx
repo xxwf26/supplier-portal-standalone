@@ -72,9 +72,11 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
     }
   }
 
-  let status: 'in_stock' | 'outreach' | 'blacklisted';
+  let status: 'in_stock' | 'outreach' | 'blacklisted' | 'unset';
   if (raw.riskStatus === '拉黑') {
     status = 'blacklisted';
+  } else if (!raw.riskStatus || raw.riskStatus === '未填写') {
+    status = 'unset';
   } else if (raw.isInStock) {
     status = 'in_stock';
   } else {

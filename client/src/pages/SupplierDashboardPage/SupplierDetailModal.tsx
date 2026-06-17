@@ -46,9 +46,10 @@ const typeConfig = {
 };
 
 const statusConfig = {
-  in_stock: { label: '库内合作', color: 'bg-green-100 text-green-700 border-green-200', dotColor: 'bg-green-500' },
-  outreach: { label: '库外建联', color: 'bg-blue-100 text-blue-700 border-blue-200', dotColor: 'bg-blue-500' },
-  blacklisted: { label: '已拉黑', color: 'bg-gray-100 text-gray-600 border-gray-200', dotColor: 'bg-gray-400' },
+  in_stock:   { label: '库内合作', color: 'bg-green-100 text-green-700 border-green-200',  dotColor: 'bg-green-500' },
+  outreach:   { label: '库外建联', color: 'bg-blue-100 text-blue-700 border-blue-200',    dotColor: 'bg-blue-500' },
+  blacklisted:{ label: '已拉黑',   color: 'bg-gray-100 text-gray-600 border-gray-200',    dotColor: 'bg-gray-400' },
+  unset:      { label: '未填写',   color: 'bg-orange-50 text-orange-500 border-orange-200', dotColor: 'bg-orange-300' },
 };
 
 const PRICE_UNIT_OPTIONS = [
@@ -212,8 +213,9 @@ function LightboxOverlay({
   );
 }
 
-function getStatusFromData(supplier: ISupplier): 'in_stock' | 'outreach' | 'blacklisted' {
+function getStatusFromData(supplier: ISupplier): 'in_stock' | 'outreach' | 'blacklisted' | 'unset' {
   if (supplier.riskStatus === '拉黑') return 'blacklisted';
+  if (!supplier.riskStatus || supplier.riskStatus === '未填写') return 'unset';
   if (supplier.isInStock) return 'in_stock';
   return 'outreach';
 }
@@ -580,7 +582,7 @@ export default function SupplierDetailModal({
         supplierType: supplierTypeVal ? supplierTypeToBackend(supplierTypeVal) : undefined,
         entityType: entityTypeVal || undefined,
         isInStock: statusVal === 'in_stock',
-        riskStatus: statusVal === 'blacklisted' ? '拉黑' : '暂无',
+        riskStatus: statusVal === 'blacklisted' ? '拉黑' : statusVal === 'outreach' ? '暂无' : '未填写',
       });
       setIsEditing(false);
       clearDraft();
@@ -746,6 +748,7 @@ export default function SupplierDetailModal({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="unset">未填写</SelectItem>
                         <SelectItem value="in_stock">库内合作</SelectItem>
                         <SelectItem value="outreach">库外建联</SelectItem>
                         <SelectItem value="blacklisted">已拉黑</SelectItem>
