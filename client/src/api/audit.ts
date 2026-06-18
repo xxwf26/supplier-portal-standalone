@@ -49,6 +49,11 @@ export const auditApi = {
     return res.data as { deleted: number; message: string };
   },
 
+  rollbackDeleteBatch: async (batchId: string) => {
+    const res = await axiosForBackend.post(`${BASE}/rollback-delete-batch/${encodeURIComponent(batchId)}`);
+    return res.data as { restored: number; message: string };
+  },
+
   listSnapshots: async () => {
     const res = await axiosForBackend.get(`${BASE}/snapshots`);
     return res.data as ISnapshot[];

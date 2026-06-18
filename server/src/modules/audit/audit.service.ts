@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { count, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
 
 // MariaDB 的 JSON 列有时以字符串形式返回，统一解析
@@ -129,6 +129,76 @@ export class AuditService {
     return { deleted: toDelete.length, message: `已撤销 ${toDelete.length} 条导入数据` };
   }
 
+  // ── 整批恢复（撤销一次批量删除，事务保证原子性） ──────────
+
+  async rollbackDeleteBatch(batchId: string, operatedBy: string): Promise<{ restored: number; message: string }> {
+    const logs = await this.db
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.batchId, batchId), eq(auditLog.operation, 'BATCH_DELETE')));
+
+    if (logs.length === 0) {
+      return { restored: 0, message: '该批次删除记录不存在或已恢复' };
+    }
+
+    let restored = 0;
+    await this.db.transaction(async (tx) => {
+      for (const entry of logs) {
+        const old = parseJsonField<Record<string, unknown>>(entry.oldData);
+        if (!old) continue;
+        await tx
+          .insert(suppliers)
+          .values(this.buildSupplierRow(old))
+          .onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
+        await tx.insert(auditLog).values({
+          operation: 'BATCH_DELETE_ROLLBACK',
+          recordId: entry.recordId,
+          batchId,
+          oldData: null,
+          newData: old,
+          operatedBy,
+        });
+        restored++;
+      }
+    });
+
+    this.logger.log(`Restored ${restored} suppliers from batch delete ${batchId} by ${operatedBy}`);
+    return { restored, message: `已恢复 ${restored} 位画师` };
+  }
+
+  /** 从审计 oldData 还原一条 suppliers 插入行（撤回删除时复用） */
+  private buildSupplierRow(old: Record<string, unknown>): any {
+    return {
+      id: old.id,
+      accountName: old.accountName,
+      socialLinks: old.socialLinks || {},
+      subCategory: old.subCategory || null,
+      cooperationType: old.cooperationType || null,
+      priceRange: old.priceRange || null,
+      priceItems: old.priceItems || [],
+      cooperationCount: Number(old.cooperationCount) || 0,
+      rating: old.rating !== undefined && old.rating !== null ? Number(old.rating) : null,
+      riskStatus: old.riskStatus || '暂无',
+      isInStock: old.isInStock ?? true,
+      entityType: old.entityType || null,
+      contractEntity: old.contractEntity || null,
+      contractType: old.contractType || null,
+      contractNo: old.contractNo || null,
+      contractDeadline: parseDateField(old.contractDeadline),
+      taxStatus: old.taxStatus || null,
+      contactInfo: old.contactInfo || null,
+      contactItems: old.contactItems || [],
+      cooperationCategory: old.cooperationCategory || null,
+      supplierType: old.supplierType || null,
+      artworkUrls: old.artworkUrls || [],
+      manualLinks: old.manualLinks || {},
+      importSource: old.importSource || 'manual',
+      importBatchId: old.importBatchId || null,
+      createdAt: parseDateField(old.createdAt) ?? new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
   // ── 单条日志撤回 ─────────────────────────────────────────
 
   async rollbackLog(logId: number, operatedBy: string): Promise<{ message: string }> {
@@ -141,7 +211,7 @@ export class AuditService {
     if (!entries.length) throw new Error('日志记录不存在');
     const entry = entries[0];
 
-    if (!['INSERT', 'UPDATE', 'DELETE'].includes(entry.operation)) {
+    if (!['INSERT', 'UPDATE', 'DELETE', 'BATCH_DELETE'].includes(entry.operation)) {
       throw new Error(`此操作类型不支持撤回: ${entry.operation}`);
     }
 
@@ -188,40 +258,17 @@ export class AuditService {
         }
         break;
       }
-      case 'DELETE': {
+      case 'DELETE':
+      case 'BATCH_DELETE': {
         if (entry.oldData) {
           // ★ 解析 JSON 字符串
-          const old = parseJsonField<Record<string, unknown>>(entry.oldData) ?? {};
-          const insertData: any = {
-            id: old.id,
-            accountName: old.accountName,
-            socialLinks: old.socialLinks || {},
-            subCategory: old.subCategory || null,
-            cooperationType: old.cooperationType || null,
-            priceRange: old.priceRange || null,
-            priceItems: old.priceItems || [],
-            cooperationCount: Number(old.cooperationCount) || 0,
-            rating: old.rating !== undefined && old.rating !== null ? Number(old.rating) : null,
-            riskStatus: old.riskStatus || '暂无',
-            isInStock: old.isInStock ?? true,
-            entityType: old.entityType || null,
-            contractEntity: old.contractEntity || null,
-            contractType: old.contractType || null,
-            contractNo: old.contractNo || null,
-            contractDeadline: parseDateField(old.contractDeadline),
-            taxStatus: old.taxStatus || null,
-            contactInfo: old.contactInfo || null,
-            contactItems: old.contactItems || [],
-            cooperationCategory: old.cooperationCategory || null,
-            supplierType: old.supplierType || null,
-            artworkUrls: old.artworkUrls || [],
-            manualLinks: old.manualLinks || {},
-            importSource: old.importSource || 'manual',
-            importBatchId: old.importBatchId || null,
-            createdAt: parseDateField(old.createdAt) ?? new Date(),
-            updatedAt: new Date(),
-          };
-          await this.db.insert(suppliers).values(insertData).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
+          const old = parseJsonField<Record<string, unknown>>(entry.oldData);
+          if (old) {
+            await this.db
+              .insert(suppliers)
+              .values(this.buildSupplierRow(old))
+              .onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
+          }
         }
         break;
       }

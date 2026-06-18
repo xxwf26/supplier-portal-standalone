@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { SupplierService } from './supplier.service';
 import { ISupplierFilter, IBatchCreateResponse } from './supplier.types';
-import { CreateSupplierDto, UpdateSupplierDto, BatchCreateSupplierDto } from './supplier.dto';
+import { CreateSupplierDto, UpdateSupplierDto, BatchCreateSupplierDto, BatchDeleteSupplierDto } from './supplier.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -75,6 +75,19 @@ export class SupplierController {
       throw new HttpException('单次导入最多 500 条', HttpStatus.BAD_REQUEST);
     }
     return this.supplierService.batchCreate(data.items, req.user?.username);
+  }
+
+  @Post('batch-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async batchDelete(@Body() data: BatchDeleteSupplierDto, @Request() req: any) {
+    if (!data.ids || !Array.isArray(data.ids) || data.ids.length === 0) {
+      throw new HttpException('请选择要删除的画师', HttpStatus.BAD_REQUEST);
+    }
+    if (data.ids.length > 500) {
+      throw new HttpException('单次最多删除 500 条', HttpStatus.BAD_REQUEST);
+    }
+    return this.supplierService.batchDelete(data.ids, req.user?.username);
   }
 
   @Post()
