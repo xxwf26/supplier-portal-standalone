@@ -2,7 +2,7 @@ import { Injectable, Inject, BadRequestException, NotFoundException } from '@nes
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
 import { filterConfig } from '../../database/filter-config.schema';
 import { suppliers } from '../../database/schema';
-import { eq, asc, and } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 
 /** 与前端 supplierUtils.inferSupplierType 一致：名字优先，再看存储值 */
 function inferSupplierType(name: string, supplierType: string | null): string {
@@ -103,21 +103,14 @@ export class ConfigService {
       throw new BadRequestException('供应商类型为固定字段，暂不支持新增或删除');
     }
     const value = LABEL_AS_VALUE.has(data.category) ? data.label : (data.value ?? data.label);
-
-    // 幂等：同 category + value 已存在则直接返回，不重复插入
-    const existing = await this.db
-      .select({ id: filterConfig.id })
-      .from(filterConfig)
-      .where(and(eq(filterConfig.category, data.category), eq(filterConfig.value, value)))
-      .limit(1);
-    if (existing.length > 0) return { id: existing[0].id };
-
     const id = crypto.randomUUID();
+
+    // 利用数据库唯一约束 (category, value) 实现幂等：重复时忽略冲突，不抛错
     await this.db.insert(filterConfig).values({
       id, category: data.category, label: data.label, value,
       color: data.color || null, note: data.note || null,
       sortOrder: data.sort_order || 0, enabled: true,
-    });
+    }).onDuplicateKeyUpdate({ set: { label: data.label } });
     return { id };
   }
 
