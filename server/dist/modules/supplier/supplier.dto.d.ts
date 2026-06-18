@@ -35,6 +35,7 @@ export declare class CreateSupplierDto implements ICreateSupplierDto {
     supplierType?: string;
     artworkUrls?: string[];
     manualLinks?: Record<string, string>;
+    noteImages?: string[];
 }
 /** 更新供应商入参：所有字段可选 */
 export declare class UpdateSupplierDto extends CreateSupplierDto {

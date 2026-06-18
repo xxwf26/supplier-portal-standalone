@@ -68,6 +68,7 @@ class CreateSupplierDto {
     supplierType;
     artworkUrls;
     manualLinks;
+    noteImages;
 }
 exports.CreateSupplierDto = CreateSupplierDto;
 __decorate([
@@ -188,6 +189,12 @@ __decorate([
     (0, class_validator_1.IsObject)(),
     __metadata("design:type", Object)
 ], CreateSupplierDto.prototype, "manualLinks", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], CreateSupplierDto.prototype, "noteImages", void 0);
 /** 更新供应商入参：所有字段可选 */
 class UpdateSupplierDto extends CreateSupplierDto {
 }

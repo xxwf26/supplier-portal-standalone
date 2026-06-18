@@ -33,6 +33,7 @@ export interface ISupplier {
   supplierType: string | null;
   artworkUrls: string[];
   manualLinks: Record<string, string>;
+  noteImages: string[];
   importSource: string;
   importBatchId: string | null;
   createdAt: string;

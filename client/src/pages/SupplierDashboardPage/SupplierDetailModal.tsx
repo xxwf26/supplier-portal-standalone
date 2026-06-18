@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { ISupplier, IPriceItem, IContactItem } from '@/api/types';
 import { supplierApi } from '@/api/supplier';
+import { axiosForBackend } from '@/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/polyfills/logger';
@@ -256,7 +257,9 @@ export default function SupplierDetailModal({
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [noteLightboxIndex, setNoteLightboxIndex] = useState<number | null>(null);
   const [artworkUrls, setArtworkUrls] = useState<string[]>([]);
+  const [noteImages, setNoteImages] = useState<string[]>([]);
   const [manualLinkEntries, setManualLinkEntries] = useState<ManualLinkEntry[]>([]);
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
   const [contactItemEntries, setContactItemEntries] = useState<ContactItemEntry[]>([]);
@@ -299,6 +302,7 @@ export default function SupplierDetailModal({
   };
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const noteImageInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const coopInputRef = useRef<HTMLInputElement>(null);
 
@@ -316,6 +320,7 @@ export default function SupplierDetailModal({
       if (!saved) return;
       const d = JSON.parse(saved);
       if (d.artworkUrls) setArtworkUrls(d.artworkUrls);
+      if (d.noteImages) setNoteImages(d.noteImages);
       if (d.manualLinkEntries) setManualLinkEntries(d.manualLinkEntries);
       if (d.priceItemEntries) setPriceItemEntries(d.priceItemEntries);
       if (d.contactItemEntries) setContactItemEntries(d.contactItemEntries);
@@ -342,6 +347,7 @@ export default function SupplierDetailModal({
           artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
           cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
           styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal,
+          noteImages,
           savedAt: new Date().toISOString(),
         }));
       } catch {}
@@ -349,7 +355,7 @@ export default function SupplierDetailModal({
     return () => clearTimeout(timer);
   }, [isEditing, draftKey, artworkUrls, manualLinkEntries, priceItemEntries,
     contactItemEntries, cooperationTypeVal, cooperationCountVal, ratingVal,
-    statusVal, styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal]);
+    statusVal, styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages]);
 
   // 进入编辑时检查草稿
   useEffect(() => {
@@ -380,6 +386,7 @@ export default function SupplierDetailModal({
   const resetForm = () => {
     if (!supplier) return;
     setArtworkUrls(supplier.artworkUrls || []);
+    setNoteImages(supplier.noteImages || []);
     const entries: ManualLinkEntry[] = Object.entries(supplier.manualLinks || {})
       .filter(([, v]) => v)
       .map(([platform, url]) => ({ platform, url }));
@@ -466,6 +473,21 @@ export default function SupplierDetailModal({
     if (!files) return;
     Array.from(files).forEach((file) => handleUpload(file));
     e.target.value = '';
+  };
+
+  const handleNoteImageUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await axiosForBackend({ url: '/api/upload', method: 'POST', data: form, headers: { 'Content-Type': 'multipart/form-data' } });
+      setNoteImages(prev => [...prev, res.data.url]);
+    } catch (err) {
+      logger.error('Note image upload failed:', String(err));
+      toast.error('图片上传失败，请重试');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeArtwork = (index: number) => {
@@ -572,12 +594,21 @@ export default function SupplierDetailModal({
         .map((e) => ({ type: e.type, value: e.value.trim() }));
 
       // 把新输入的、系统配置里还没有的擅长风格同步进配置（之后筛选/配置/下拉即可见）
-      const newStyles = styleTags.filter((t) => t && !stylePresets.includes(t));
-      for (const s of newStyles) {
+      for (const s of styleTags) {
+        if (!s) continue;
         try {
           await configApi.create({ category: 'style', label: s });
         } catch {
-          // 忽略重复/权限等错误，不阻断画师保存
+          // 忽略错误，不阻断画师保存
+        }
+      }
+
+      for (const t of cooperationTypeVal) {
+        if (!t) continue;
+        try {
+          await configApi.create({ category: 'cooperationType', label: t });
+        } catch {
+          // 忽略错误，不阻断画师保存
         }
       }
 
@@ -587,13 +618,14 @@ export default function SupplierDetailModal({
         manualLinks: manualLinksRecord,
         priceItems,
         contactItems,
-        cooperationType: cooperationTypeVal.length > 0 ? cooperationTypeVal.join('、') : undefined,
+        noteImages,
+        cooperationType: cooperationTypeVal.length > 0 ? cooperationTypeVal.join('、') : null,
         cooperationCount: cooperationCountVal ? Number(cooperationCountVal) : 0,
         rating: ratingVal ? Number(ratingVal) : null,
-        subCategory: styleTags.join('、') || undefined,
+        subCategory: styleTags.join('、') || null,
         contactInfo: contactInfoText,
         supplierType: supplierTypeVal ? supplierTypeToBackend(supplierTypeVal) : undefined,
-        entityType: entityTypeVal || undefined,
+        entityType: entityTypeVal || null,
         isInStock: statusVal === 'in_stock',
         riskStatus: statusVal === 'blacklisted' ? '拉黑' : statusVal === 'outreach' ? '暂无' : '未填写',
       });
@@ -1374,15 +1406,96 @@ export default function SupplierDetailModal({
                       className="text-xs"
                       minHeight="min-h-[100px]"
                     />
+                    {/* 佐证图片区 */}
+                    <div className="border-t border-border/40 pt-2 space-y-2">
+                      <p className="text-[10px] text-muted-foreground">佐证图片</p>
+                      {noteImages.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2">
+                          {noteImages.map((url, idx) => (
+                            <div key={idx} className="relative aspect-[4/3] rounded-lg overflow-hidden group border border-border">
+                              <img
+                                src={url}
+                                alt={`佐证 ${idx + 1}`}
+                                className="w-full h-full object-cover cursor-zoom-in"
+                                onClick={() => setNoteLightboxIndex(idx)}
+                              />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setNoteImages(prev => prev.filter((_, i) => i !== idx)); }}
+                                className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2Icon className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div
+                        className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer min-h-[80px] flex flex-col items-center justify-center"
+                        onClick={() => noteImageInputRef.current?.click()}
+                        tabIndex={0}
+                        onPaste={(e) => {
+                          const items = e.clipboardData?.items;
+                          if (!items) return;
+                          for (let i = 0; i < items.length; i++) {
+                            if (items[i].type.startsWith('image/')) {
+                              const file = items[i].getAsFile();
+                              if (file) handleNoteImageUpload(file);
+                            }
+                          }
+                          e.stopPropagation();
+                        }}
+                      >
+                        <input
+                          ref={noteImageInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            e.target.value = '';
+                            files.forEach(handleNoteImageUpload);
+                          }}
+                        />
+                        <UploadIcon className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
+                        <p className="text-xs text-muted-foreground">点击上传或粘贴图片</p>
+                        {uploading && <p className="text-xs text-primary mt-1">上传中...</p>}
+                      </div>
+                    </div>
                   </div>
                 ) : (
-                  supplier.contactInfo ? (
-                    <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
-                      {supplier.contactInfo}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground text-center py-1">暂无备注</p>
-                  )
+                  <div className="space-y-2">
+                    {supplier.contactInfo ? (
+                      <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                        {supplier.contactInfo}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-1">暂无备注</p>
+                    )}
+                    {noteImages.length > 0 && (
+                      <div className="border-t border-border/40 pt-2">
+                        <p className="text-[10px] text-muted-foreground mb-1.5">佐证图片</p>
+                        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+                          {noteImages.map((url, idx) => (
+                            <div
+                              key={idx}
+                              className="flex-shrink-0 h-[160px] rounded-lg overflow-hidden bg-muted border border-border cursor-zoom-in hover:border-primary/50 transition-colors group relative"
+                              onClick={() => setNoteLightboxIndex(idx)}
+                            >
+                              <img
+                                src={url}
+                                alt={`佐证 ${idx + 1}`}
+                                className="h-full w-auto max-w-[280px] object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs bg-black/50 px-2 py-1 rounded-full">查看大图</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -1395,11 +1508,14 @@ export default function SupplierDetailModal({
               </div>
               <div className={moduleBody}>
                 {isEditing ? (
-                  <Select value={entityTypeVal} onValueChange={setEntityTypeVal}>
+                  <Select value={entityTypeVal || '__none__'} onValueChange={(v) => setEntityTypeVal(v === '__none__' ? '' : v)}>
                     <SelectTrigger className="h-7 text-xs w-full">
                       <SelectValue placeholder="选择项目" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">
+                        <span className="text-muted-foreground">未设置</span>
+                      </SelectItem>
                       {projectOptions.map((opt: string) => (
                         <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                       ))}
@@ -1483,12 +1599,21 @@ export default function SupplierDetailModal({
       </AlertDialogContent>
     </AlertDialog>
 
-    {/* 全屏灯箱 */}
+    {/* 作品灯箱 */}
     {lightboxIndex !== null && artworkUrls.length > 0 && (
       <LightboxOverlay
         urls={artworkUrls}
         startIndex={lightboxIndex}
         onClose={() => setLightboxIndex(null)}
+      />
+    )}
+
+    {/* 备注佐证图片灯箱 */}
+    {noteLightboxIndex !== null && noteImages.length > 0 && (
+      <LightboxOverlay
+        urls={noteImages}
+        startIndex={noteLightboxIndex}
+        onClose={() => setNoteLightboxIndex(null)}
       />
     )}
     </>

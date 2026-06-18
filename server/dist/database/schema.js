@@ -50,6 +50,8 @@ exports.suppliers = (0, mysql_core_1.mysqlTable)('suppliers', {
     artworkUrls: (0, mysql_core_1.json)('artwork_urls').$type(),
     /** 手动补录的平台链接 */
     manualLinks: (0, mysql_core_1.json)('manual_links').$type(),
+    /** 备注区域的佐证图片URL列表 */
+    noteImages: (0, mysql_core_1.json)('note_images').$type(),
     importSource: (0, mysql_core_1.varchar)('import_source', { length: 255 }).default('manual'),
     importBatchId: (0, mysql_core_1.varchar)('import_batch_id', { length: 255 }),
     createdAt: (0, mysql_core_1.timestamp)('created_at').default((0, drizzle_orm_1.sql) `CURRENT_TIMESTAMP`).notNull(),

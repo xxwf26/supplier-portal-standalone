@@ -107,8 +107,8 @@ export class SupplierService {
       supplierType: data.supplierType || null,
       importSource: options.importSource || 'manual',
       importBatchId: options.importBatchId || null,
+      noteImages: data.noteImages || [],
     });
-
     const created = await this.findById(id);
     if (!created) {
       throw new Error('创建后未能读取到新记录');
@@ -170,6 +170,7 @@ export class SupplierService {
     if (data.cooperationCategory !== undefined) updateData.cooperationCategory = data.cooperationCategory;
     if (data.supplierType !== undefined) updateData.supplierType = data.supplierType;
     if (data.artworkUrls !== undefined) updateData.artworkUrls = data.artworkUrls;
+    if (data.noteImages !== undefined) updateData.noteImages = data.noteImages;
 
     await this.db.update(suppliers).set(updateData).where(eq(suppliers.id, id));
     const updated = await this.findById(id);
@@ -424,6 +425,7 @@ export class SupplierService {
       supplierType: dbRecord.supplierType,
       artworkUrls: parseJson(dbRecord.artworkUrls, []),
       manualLinks: parseJson(dbRecord.manualLinks, {}),
+      noteImages: parseJson(dbRecord.noteImages, []),
       importSource: dbRecord.importSource || 'manual',
       importBatchId: dbRecord.importBatchId,
       createdAt: dbRecord.createdAt instanceof Date ? dbRecord.createdAt.toISOString() : String(dbRecord.createdAt),

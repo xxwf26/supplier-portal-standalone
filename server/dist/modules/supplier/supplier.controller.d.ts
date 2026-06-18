@@ -8,11 +8,18 @@ export declare class SupplierController {
     getStatistics(): Promise<{
         total: number;
         individualCount: number;
+        artistCount: number;
         companyCount: number;
+        studioCount: number;
         activeCount: number;
         categoryCount: Record<string, number>;
         riskCount: Record<string, number>;
     }>;
+    getDuplicates(): Promise<{
+        ids: string[];
+        names: string[];
+        reason: string;
+    }[]>;
     findById(id: string): Promise<import("./supplier.types").ISupplier>;
     batchCreate(data: BatchCreateSupplierDto, req: any): Promise<IBatchCreateResponse>;
     create(data: CreateSupplierDto, req: any): Promise<import("./supplier.types").ISupplier>;

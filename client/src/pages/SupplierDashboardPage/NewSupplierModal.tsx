@@ -21,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supplierApi } from '@/api/supplier';
 import { IPriceItem, IContactItem } from '@/api/types';
+import { axiosForBackend } from '@/api';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/polyfills/logger';
 import { getDataloom, getDefaultBucketId } from '@/lib/polyfills/storage';
@@ -116,8 +117,10 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
   const [showConfirm, setShowConfirm] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [artworkUrls, setArtworkUrls] = useState<string[]>([]);
+  const [noteImages, setNoteImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const noteImageInputRef = useRef<HTMLInputElement>(null);
   const [similarSuppliers, setSimilarSuppliers] = useState<string[]>([]);
 
   const [accountName, setAccountName] = useState('');
@@ -133,7 +136,8 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
 
   const isDirty = accountName.trim() !== '' || supplierType !== '' || cooperationTypes.length > 0 ||
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
-    priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0;
+    priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0 ||
+    noteImages.length > 0;
 
   // 输入名称时实时检测相似画师（纯前端比对，无需 API，防抖 400ms）
   useEffect(() => {
@@ -156,7 +160,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         _v: 2,
         accountName, supplierType, cooperationTypes,
         contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
-        contactItemEntries, savedAt: new Date().toISOString(),
+        contactItemEntries, noteImages, savedAt: new Date().toISOString(),
       };
       try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
     }, 400);
@@ -191,6 +195,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
       setLinkEntries(d.linkEntries ?? []);
       setPriceItemEntries(d.priceItemEntries ?? []);
       setContactItemEntries(d.contactItemEntries ?? []);
+      setNoteImages(d.noteImages ?? []);
     } catch {}
     setDraftSavedAt(null);
   }, []);
@@ -214,6 +219,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     setPriceItemEntries([]);
     setContactItemEntries([]);
     setArtworkUrls([]);
+    setNoteImages([]);
     setDraftSavedAt(null);
   };
 
@@ -241,6 +247,21 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     if (!files) return;
     Array.from(files).forEach(file => handleUpload(file));
     e.target.value = '';
+  };
+
+  const handleNoteImageUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await axiosForBackend({ url: '/api/upload', method: 'POST', data: form, headers: { 'Content-Type': 'multipart/form-data' } });
+      setNoteImages(prev => [...prev, res.data.url]);
+    } catch (err) {
+      logger.error('Note image upload failed:', String(err));
+      toast.error('图片上传失败，请重试');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleClose = () => {
@@ -352,13 +373,21 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         .filter((e) => e.type && e.value.trim())
         .map((e) => ({ type: e.type, value: e.value.trim() }));
 
-      // 把新输入的、系统配置里还没有的擅长风格同步进配置
-      const newStyles = styleTags.filter((t) => t && !stylePresets.includes(t));
-      for (const s of newStyles) {
+      for (const s of styleTags) {
+        if (!s) continue;
         try {
           await configApi.create({ category: 'style', label: s });
         } catch {
-          // 忽略重复/权限等错误，不阻断创建
+          // 忽略错误，不阻断创建
+        }
+      }
+
+      for (const t of cooperationTypes) {
+        if (!t) continue;
+        try {
+          await configApi.create({ category: 'cooperationType', label: t });
+        } catch {
+          // 忽略错误，不阻断创建
         }
       }
 
@@ -373,6 +402,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         priceItems,
         contactItems,
         artworkUrls: artworkUrls.length > 0 ? artworkUrls : undefined,
+        noteImages: noteImages.length > 0 ? noteImages : undefined,
       });
 
       toast.success(`供应商「${accountName}」创建成功`);
@@ -721,6 +751,57 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                 onChange={setContactInfo}
                 placeholder="特殊要求等"
               />
+              {/* 佐证图片 */}
+              <div className="mt-2 space-y-2">
+                <p className="text-[10px] text-muted-foreground">佐证图片</p>
+                {noteImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {noteImages.map((url, idx) => (
+                      <div key={idx} className="relative aspect-[4/3] rounded-lg overflow-hidden group border border-border">
+                        <img src={url} alt={`佐证 ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setNoteImages(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2Icon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div
+                  className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 min-h-[70px]"
+                  onClick={() => noteImageInputRef.current?.click()}
+                  tabIndex={0}
+                  onPaste={(e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (let i = 0; i < items.length; i++) {
+                      if (items[i].type.startsWith('image/')) {
+                        const file = items[i].getAsFile();
+                        if (file) handleNoteImageUpload(file);
+                      }
+                    }
+                    e.stopPropagation();
+                  }}
+                >
+                  <input
+                    ref={noteImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      e.target.value = '';
+                      files.forEach(handleNoteImageUpload);
+                    }}
+                  />
+                  <UploadIcon className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">点击上传或粘贴图片</p>
+                </div>
+              </div>
             </div>
           </div>
 

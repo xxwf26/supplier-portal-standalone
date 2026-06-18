@@ -17,6 +17,20 @@ exports.AuditService = void 0;
 const common_1 = require("@nestjs/common");
 const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../database/database.module");
+// MariaDB 的 JSON 列有时以字符串形式返回，统一解析
+function parseJsonField(value) {
+    if (value === null || value === undefined)
+        return null;
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value);
+        }
+        catch {
+            return null;
+        }
+    }
+    return value;
+}
 const schema_1 = require("../../database/schema");
 const child_process_1 = require("child_process");
 const util_1 = require("util");
@@ -136,7 +150,6 @@ let AuditService = AuditService_1 = class AuditService {
             }
             case 'UPDATE': {
                 if (recordId && entry.oldData) {
-                    // 检查此日志之后是否有更新操作（版本冲突提示）
                     const allRecordLogs = await this.db
                         .select({ id: schema_1.auditLog.id, operation: schema_1.auditLog.operation })
                         .from(schema_1.auditLog)
@@ -146,7 +159,8 @@ let AuditService = AuditService_1 = class AuditService {
                     if (laterOps.length > 0) {
                         this.logger.warn(`Rollback log ${logId}: ${laterOps.length} later update(s) will be overwritten`);
                     }
-                    const old = entry.oldData;
+                    // ★ 解析 JSON 字符串（MariaDB 返回 JSON 列为字符串）
+                    const old = parseJsonField(entry.oldData) ?? {};
                     const skipFields = new Set(['id', 'createdAt', 'updatedAt', 'importBatchId', 'importSource']);
                     const restoreData = { updatedAt: new Date() };
                     for (const [k, v] of Object.entries(old)) {
@@ -161,7 +175,6 @@ let AuditService = AuditService_1 = class AuditService {
                     }
                     await this.db.update(schema_1.suppliers).set(restoreData).where((0, drizzle_orm_1.eq)(schema_1.suppliers.id, recordId));
                     if (laterOps.length > 0) {
-                        // 返回信息中带上警告
                         await this.log({ operation: 'LOG_ROLLBACK', recordId: recordId ?? undefined, batchId: String(logId), oldData: entry.newData, newData: entry.oldData, operatedBy });
                         this.logger.log(`Log ${logId} rolled back by ${operatedBy}`);
                         return { message: `撤回成功（注意：该记录在此操作后还有 ${laterOps.length} 次编辑已被覆盖）` };
@@ -171,11 +184,37 @@ let AuditService = AuditService_1 = class AuditService {
             }
             case 'DELETE': {
                 if (entry.oldData) {
-                    const old = entry.oldData;
-                    const insertData = { ...old };
-                    insertData.contractDeadline = parseDateField(insertData.contractDeadline);
-                    insertData.createdAt = parseDateField(insertData.createdAt) ?? new Date();
-                    insertData.updatedAt = new Date();
+                    // ★ 解析 JSON 字符串
+                    const old = parseJsonField(entry.oldData) ?? {};
+                    const insertData = {
+                        id: old.id,
+                        accountName: old.accountName,
+                        socialLinks: old.socialLinks || {},
+                        subCategory: old.subCategory || null,
+                        cooperationType: old.cooperationType || null,
+                        priceRange: old.priceRange || null,
+                        priceItems: old.priceItems || [],
+                        cooperationCount: Number(old.cooperationCount) || 0,
+                        rating: old.rating !== undefined && old.rating !== null ? Number(old.rating) : null,
+                        riskStatus: old.riskStatus || '暂无',
+                        isInStock: old.isInStock ?? true,
+                        entityType: old.entityType || null,
+                        contractEntity: old.contractEntity || null,
+                        contractType: old.contractType || null,
+                        contractNo: old.contractNo || null,
+                        contractDeadline: parseDateField(old.contractDeadline),
+                        taxStatus: old.taxStatus || null,
+                        contactInfo: old.contactInfo || null,
+                        contactItems: old.contactItems || [],
+                        cooperationCategory: old.cooperationCategory || null,
+                        supplierType: old.supplierType || null,
+                        artworkUrls: old.artworkUrls || [],
+                        manualLinks: old.manualLinks || {},
+                        importSource: old.importSource || 'manual',
+                        importBatchId: old.importBatchId || null,
+                        createdAt: parseDateField(old.createdAt) ?? new Date(),
+                        updatedAt: new Date(),
+                    };
                     await this.db.insert(schema_1.suppliers).values(insertData).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
                 }
                 break;

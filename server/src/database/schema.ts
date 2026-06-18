@@ -55,6 +55,8 @@ export const suppliers = mysqlTable(
     artworkUrls: json('artwork_urls').$type<string[]>(),
     /** 手动补录的平台链接 */
     manualLinks: json('manual_links').$type<Record<string, string>>(),
+    /** 备注区域的佐证图片URL列表 */
+    noteImages: json('note_images').$type<string[]>(),
     importSource: varchar('import_source', { length: 255 }).default('manual'),
     importBatchId: varchar('import_batch_id', { length: 255 }),
     createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),

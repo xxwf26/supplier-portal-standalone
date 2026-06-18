@@ -84,6 +84,22 @@ declare const allSchemas: {
                 baseColumn: never;
                 generated: undefined;
             }, object>;
+            note: import("drizzle-orm/mysql-core").MySqlColumn<{
+                name: "note";
+                tableName: "filter_config";
+                dataType: "string";
+                columnType: "MySqlVarChar";
+                data: string;
+                driverParam: string | number;
+                notNull: false;
+                hasDefault: false;
+                isPrimaryKey: false;
+                isAutoincrement: false;
+                hasRuntimeDefault: false;
+                enumValues: [string, ...string[]];
+                baseColumn: never;
+                generated: undefined;
+            }, object>;
             sortOrder: import("drizzle-orm/mysql-core").MySqlColumn<{
                 name: "sort_order";
                 tableName: "filter_config";
@@ -665,6 +681,22 @@ declare const allSchemas: {
                 baseColumn: never;
                 generated: undefined;
             }, object>;
+            noteImages: import("drizzle-orm/mysql-core").MySqlColumn<{
+                name: "note_images";
+                tableName: "suppliers";
+                dataType: "json";
+                columnType: "MySqlJson";
+                data: string[];
+                driverParam: string;
+                notNull: false;
+                hasDefault: false;
+                isPrimaryKey: false;
+                isAutoincrement: false;
+                hasRuntimeDefault: false;
+                enumValues: undefined;
+                baseColumn: never;
+                generated: undefined;
+            }, object>;
             importSource: import("drizzle-orm/mysql-core").MySqlColumn<{
                 name: "import_source";
                 tableName: "suppliers";
@@ -1101,6 +1133,22 @@ declare const allSchemas: {
                 dataType: "json";
                 columnType: "MySqlJson";
                 data: Record<string, string>;
+                driverParam: string;
+                notNull: false;
+                hasDefault: false;
+                isPrimaryKey: false;
+                isAutoincrement: false;
+                hasRuntimeDefault: false;
+                enumValues: undefined;
+                baseColumn: never;
+                generated: undefined;
+            }, object>;
+            noteImages: import("drizzle-orm/mysql-core").MySqlColumn<{
+                name: "note_images";
+                tableName: "suppliers";
+                dataType: "json";
+                columnType: "MySqlJson";
+                data: string[];
                 driverParam: string;
                 notNull: false;
                 hasDefault: false;

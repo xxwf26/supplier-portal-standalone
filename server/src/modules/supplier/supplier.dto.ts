@@ -132,6 +132,11 @@ export class CreateSupplierDto implements ICreateSupplierDto {
   @IsOptional()
   @IsObject()
   manualLinks?: Record<string, string>;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  noteImages?: string[];
 }
 
 /** 更新供应商入参：所有字段可选 */

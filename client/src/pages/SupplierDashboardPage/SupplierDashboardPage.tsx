@@ -16,10 +16,15 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import HistoryPanel from './HistoryPanel';
 import DuplicateCheckPanel from './DuplicateCheckPanel';
 import { inferSupplierType } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
+import { ExportFields, DEFAULT_EXPORT_FIELDS, EXPORT_FIELD_LABELS, exportSuppliersToPdf } from './exportSupplierPdf';
+
+const EXPORT_FIELDS_STORAGE_KEY = '__export_fields';
 
 type SortKey = 'default' | 'ratingDesc' | 'ratingAsc' | 'countDesc' | 'countAsc' | 'recent';
 
@@ -349,17 +354,31 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   }, [selectedIds, selectedSuppliers]);
 
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportFields, setExportFields] = useState<ExportFields>(() => {
+    try {
+      const saved = localStorage.getItem(EXPORT_FIELDS_STORAGE_KEY);
+      if (saved) return { ...DEFAULT_EXPORT_FIELDS, ...JSON.parse(saved) };
+    } catch {}
+    return DEFAULT_EXPORT_FIELDS;
+  });
 
-  const handleExportPdf = useCallback(async () => {
+  const handleExportPdf = useCallback(() => {
     if (selectedSuppliers.length === 0 || isExporting) return;
+    setShowExportDialog(true);
+  }, [selectedSuppliers, isExporting]);
+
+  const handleConfirmExport = useCallback(async (fields: ExportFields) => {
+    setShowExportDialog(false);
+    try { localStorage.setItem(EXPORT_FIELDS_STORAGE_KEY, JSON.stringify(fields)); } catch {}
     if (hiddenSelectedCount > 0) {
       toast.warning(`有 ${hiddenSelectedCount} 位已选画师被当前筛选/搜索隐藏，本次仅导出可见的 ${selectedSuppliers.length} 位`);
     }
     setIsExporting(true);
     const toastId = toast.loading(`正在生成 PDF（0/${selectedSuppliers.length}）…`);
     try {
-      const { exportSuppliersToPdf } = await import('./exportSupplierPdf');
       await exportSuppliersToPdf(selectedSuppliers, {
+        fields,
         onProgress: (current, total) => {
           toast.loading(`正在生成 PDF（${current}/${total}）…`, { id: toastId });
         },
@@ -778,6 +797,83 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
 
       <HistoryPanel open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onDataChange={fetchSuppliers} />
       <DuplicateCheckPanel open={isDuplicateOpen} onClose={() => setIsDuplicateOpen(false)} onDeleted={fetchSuppliers} suppliers={rawSuppliers} />
+
+      {/* 导出字段选择对话框 */}
+      <ExportFieldsDialog
+        open={showExportDialog}
+        fields={exportFields}
+        onFieldsChange={setExportFields}
+        onConfirm={handleConfirmExport}
+        onCancel={() => setShowExportDialog(false)}
+        count={selectedSuppliers.length}
+      />
     </div>
+  );
+}
+
+// ── 导出字段选择对话框 ─────────────────────────────────────
+function ExportFieldsDialog({
+  open, fields, onFieldsChange, onConfirm, onCancel, count,
+}: {
+  open: boolean;
+  fields: ExportFields;
+  onFieldsChange: (f: ExportFields) => void;
+  onConfirm: (f: ExportFields) => void;
+  onCancel: () => void;
+  count: number;
+}) {
+  const allChecked = EXPORT_FIELD_LABELS.every(({ key }) => fields[key]);
+  const noneChecked = EXPORT_FIELD_LABELS.every(({ key }) => !fields[key]);
+
+  const toggle = (key: keyof ExportFields) =>
+    onFieldsChange({ ...fields, [key]: !fields[key] });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>选择导出字段</DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground -mt-1">
+          基础信息（名称 / 类型 / 状态 / 评分 / 频次）始终导出
+        </p>
+        <div className="grid grid-cols-2 gap-2 py-1">
+          {EXPORT_FIELD_LABELS.map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-2 cursor-pointer select-none text-sm">
+              <Checkbox
+                checked={fields[key]}
+                onCheckedChange={() => toggle(key)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 pt-1 border-t border-border">
+          <button
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => onFieldsChange(DEFAULT_EXPORT_FIELDS)}
+          >
+            全选
+          </button>
+          <span className="text-muted-foreground/40 text-xs">·</span>
+          <button
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => onFieldsChange(Object.fromEntries(EXPORT_FIELD_LABELS.map(({ key }) => [key, false])) as ExportFields)}
+          >
+            全不选
+          </button>
+          <div className="flex-1" />
+          <Button variant="outline" size="sm" onClick={onCancel}>取消</Button>
+          <Button
+            size="sm"
+            disabled={noneChecked}
+            onClick={() => onConfirm(fields)}
+          >
+            <DownloadIcon className="w-3.5 h-3.5 mr-1" />
+            导出 {count} 位
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

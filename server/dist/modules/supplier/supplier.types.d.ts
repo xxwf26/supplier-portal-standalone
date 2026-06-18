@@ -31,6 +31,7 @@ export interface ISupplier {
     supplierType: string | null;
     artworkUrls: string[];
     manualLinks: Record<string, string>;
+    noteImages: string[];
     importSource: string;
     importBatchId: string | null;
     createdAt: string;
@@ -59,10 +60,12 @@ export interface ICreateSupplierDto {
     supplierType?: string;
     artworkUrls?: string[];
     manualLinks?: Record<string, string>;
+    noteImages?: string[];
 }
 export interface IUpdateSupplierDto extends Partial<ICreateSupplierDto> {
     artworkUrls?: string[];
     manualLinks?: Record<string, string>;
+    noteImages?: string[];
 }
 export interface ISupplierFilter {
     supplierType?: string[];

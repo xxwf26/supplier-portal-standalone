@@ -43,6 +43,9 @@ let SupplierController = class SupplierController {
     async getStatistics() {
         return this.supplierService.getStatistics();
     }
+    async getDuplicates() {
+        return this.supplierService.getDuplicates();
+    }
     async findById(id) {
         const supplier = await this.supplierService.findById(id);
         if (!supplier) {
@@ -99,6 +102,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "getStatistics", null);
+__decorate([
+    (0, common_1.Get)('duplicates'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], SupplierController.prototype, "getDuplicates", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

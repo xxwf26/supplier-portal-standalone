@@ -528,6 +528,22 @@ export declare const suppliers: import("drizzle-orm/mysql-core").MySqlTableWithC
             baseColumn: never;
             generated: undefined;
         }, object>;
+        noteImages: import("drizzle-orm/mysql-core").MySqlColumn<{
+            name: "note_images";
+            tableName: "suppliers";
+            dataType: "json";
+            columnType: "MySqlJson";
+            data: string[];
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            generated: undefined;
+        }, object>;
         importSource: import("drizzle-orm/mysql-core").MySqlColumn<{
             name: "import_source";
             tableName: "suppliers";
@@ -964,6 +980,22 @@ export declare const suppliersTable: import("drizzle-orm/mysql-core").MySqlTable
             dataType: "json";
             columnType: "MySqlJson";
             data: Record<string, string>;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            generated: undefined;
+        }, object>;
+        noteImages: import("drizzle-orm/mysql-core").MySqlColumn<{
+            name: "note_images";
+            tableName: "suppliers";
+            dataType: "json";
+            columnType: "MySqlJson";
+            data: string[];
             driverParam: string;
             notNull: false;
             hasDefault: false;

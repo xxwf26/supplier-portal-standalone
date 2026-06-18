@@ -1,5 +1,39 @@
 import type { IProcessedSupplier } from './SupplierGridSection';
 
+// ── 字段选择 ──────────────────────────────────────────────
+export interface ExportFields {
+  artworks: boolean;
+  styles: boolean;
+  cooperationType: boolean;
+  price: boolean;
+  contact: boolean;
+  links: boolean;
+  project: boolean;
+  notes: boolean;
+}
+
+export const DEFAULT_EXPORT_FIELDS: ExportFields = {
+  artworks: true,
+  styles: true,
+  cooperationType: true,
+  price: true,
+  contact: true,
+  links: true,
+  project: true,
+  notes: true,
+};
+
+export const EXPORT_FIELD_LABELS: { key: keyof ExportFields; label: string }[] = [
+  { key: 'artworks',       label: '作品展示' },
+  { key: 'styles',         label: '擅长风格' },
+  { key: 'cooperationType',label: '合作类型' },
+  { key: 'price',          label: '报价参考' },
+  { key: 'contact',        label: '联系方式' },
+  { key: 'links',          label: '平台链接' },
+  { key: 'project',        label: '历史参与项目' },
+  { key: 'notes',          label: '备注' },
+];
+
 // ── 标签映射 ──────────────────────────────────────────────
 const platformLabelMap: Record<string, string> = {
   weibo: '微博', pixiv: 'Pixiv', xiaohongshu: '小红书',
@@ -27,7 +61,6 @@ function esc(text: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
-// 预加载单张图片，返回 dataURL；失败返回 null（缺图不阻断导出）
 function loadImageAsDataUrl(url: string): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -42,7 +75,7 @@ function loadImageAsDataUrl(url: string): Promise<string | null> {
         ctx.drawImage(img, 0, 0);
         resolve(canvas.toDataURL('image/jpeg', 0.85));
       } catch {
-        resolve(null); // 跨域污染等情况
+        resolve(null);
       }
     };
     img.onerror = () => resolve(null);
@@ -54,6 +87,7 @@ function loadImageAsDataUrl(url: string): Promise<string | null> {
 function buildSupplierCard(
   s: IProcessedSupplier,
   artworkDataUrls: (string | null)[],
+  fields: ExportFields,
 ): string {
   const statusLabel = statusLabelMap[s.status] || s.status;
   const statusColor = statusColorMap[s.status] || '#6b7280';
@@ -65,86 +99,101 @@ function buildSupplierCard(
     )
     .join('');
 
-  const styleTags = s.styles.length
-    ? s.styles
-        .map(
-          (t) =>
-            `<span style="display:inline-block;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;border-radius:9999px;padding:2px 10px;font-size:12px;margin:0 6px 6px 0;">${esc(t)}</span>`,
-        )
-        .join('')
-    : '<span style="color:#9ca3af;font-size:13px;">暂未设置</span>';
-
-  const coopTags = s.cooperationTypes.length
-    ? s.cooperationTypes
-        .map(
-          (t) =>
-            `<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #dbeafe;border-radius:9999px;padding:2px 10px;font-size:12px;margin:0 6px 6px 0;">${esc(t)}</span>`,
-        )
-        .join('')
-    : '<span style="color:#9ca3af;font-size:13px;">未设置</span>';
-
-  const priceRows =
-    s.priceItems && s.priceItems.length
-      ? s.priceItems
-          .map(
-            (p) =>
-              `<div style="display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid #f1f5f9;font-size:13px;">
-                <span style="color:#475569;">${esc(p.cooperationType)}</span>
-                <span><b style="color:#2563eb;">${esc(p.unitPrice)}</b> <span style="color:#94a3b8;font-size:12px;">${esc(p.priceUnit)}</span></span>
-              </div>`,
-          )
-          .join('')
-      : s.priceText
-        ? `<div style="font-size:13px;color:#475569;white-space:pre-wrap;line-height:1.6;">${esc(s.priceText)}</div>`
-        : '<span style="color:#9ca3af;font-size:13px;">暂无报价信息</span>';
-
-  const contactRows =
-    s.contactItems && s.contactItems.length
-      ? s.contactItems
-          .map(
-            (c) =>
-              `<div style="font-size:13px;margin-bottom:4px;">
-                <span style="display:inline-block;min-width:42px;background:#f1f5f9;color:#475569;border-radius:4px;padding:1px 6px;font-size:12px;margin-right:8px;">${esc(contactTypeLabels[c.type] || c.type)}</span>
-                <span style="color:#1e293b;">${esc(c.value)}</span>
-              </div>`,
-          )
-          .join('')
-      : '<span style="color:#9ca3af;font-size:13px;">暂无联系方式</span>';
-
-  const links = s.links || {};
-  const linkRows = Object.keys(links).length
-    ? Object.entries(links)
-        .map(
-          ([platform, url]) =>
-            `<div style="font-size:12px;margin-bottom:4px;word-break:break-all;">
-              <span style="color:#475569;font-weight:600;">${esc(platformLabelMap[platform] || platform)}：</span>
-              <span style="color:#2563eb;">${esc(url)}</span>
-            </div>`,
-        )
-        .join('')
-    : '<span style="color:#9ca3af;font-size:13px;">暂无平台链接</span>';
-
-  // 作品图片：成功加载的显示图，失败的显示占位
-  const artworkBlock =
-    artworkDataUrls.length === 0
-      ? '<span style="color:#9ca3af;font-size:13px;">暂无作品图片</span>'
-      : `<div style="display:flex;flex-wrap:wrap;gap:8px;">${artworkDataUrls
-          .map((dataUrl) =>
-            dataUrl
-              ? `<img src="${dataUrl}" style="width:160px;height:160px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;" />`
-              : `<div style="width:160px;height:160px;border-radius:8px;border:1px dashed #cbd5e1;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;text-align:center;">图片缺失<br/>(文件未同步)</div>`,
-          )
-          .join('')}</div>`;
-
   const sectionTitle = (text: string) =>
     `<div style="font-size:13px;font-weight:700;color:#0f172a;margin:0 0 8px 0;padding-left:8px;border-left:3px solid #2563eb;">${text}</div>`;
 
   const card = (inner: string) =>
     `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:14px;">${inner}</div>`;
 
+  // ── 各 section ──
+  const artworkBlock = fields.artworks
+    ? (() => {
+        const block = artworkDataUrls.length === 0
+          ? '<span style="color:#9ca3af;font-size:13px;">暂无作品图片</span>'
+          : `<div style="display:flex;flex-wrap:wrap;gap:8px;">${artworkDataUrls
+              .map((dataUrl) =>
+                dataUrl
+                  ? `<img src="${dataUrl}" style="width:160px;height:160px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;" />`
+                  : `<div style="width:160px;height:160px;border-radius:8px;border:1px dashed #cbd5e1;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;text-align:center;">图片缺失</div>`,
+              )
+              .join('')}</div>`;
+        return card(sectionTitle('作品展示') + block);
+      })()
+    : '';
+
+  const stylesHtml = fields.styles
+    ? (() => {
+        const content = s.styles.length
+          ? s.styles.map((t) => `<span style="display:inline-block;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;border-radius:9999px;padding:2px 10px;font-size:12px;margin:0 6px 6px 0;">${esc(t)}</span>`).join('')
+          : '<span style="color:#9ca3af;font-size:13px;">暂未设置</span>';
+        return card(sectionTitle('擅长风格') + `<div>${content}</div>`);
+      })()
+    : '';
+
+  const coopHtml = fields.cooperationType
+    ? (() => {
+        const content = s.cooperationTypes.length
+          ? s.cooperationTypes.map((t) => `<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #dbeafe;border-radius:9999px;padding:2px 10px;font-size:12px;margin:0 6px 6px 0;">${esc(t)}</span>`).join('')
+          : '<span style="color:#9ca3af;font-size:13px;">未设置</span>';
+        return card(sectionTitle('合作类型') + `<div>${content}</div>`);
+      })()
+    : '';
+
+  const priceHtml = fields.price
+    ? (() => {
+        const rows = s.priceItems && s.priceItems.length
+          ? s.priceItems.map((p) => `<div style="display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid #f1f5f9;font-size:13px;"><span style="color:#475569;">${esc(p.cooperationType)}</span><span><b style="color:#2563eb;">${esc(p.unitPrice)}</b> <span style="color:#94a3b8;font-size:12px;">${esc(p.priceUnit)}</span></span></div>`).join('')
+          : s.priceText
+            ? `<div style="font-size:13px;color:#475569;white-space:pre-wrap;line-height:1.6;">${esc(s.priceText)}</div>`
+            : '<span style="color:#9ca3af;font-size:13px;">暂无报价信息</span>';
+        return card(sectionTitle('报价参考') + rows);
+      })()
+    : '';
+
+  const contactHtml = fields.contact
+    ? (() => {
+        const rows = s.contactItems && s.contactItems.length
+          ? s.contactItems.map((c) => `<div style="font-size:13px;margin-bottom:4px;"><span style="display:inline-block;min-width:42px;background:#f1f5f9;color:#475569;border-radius:4px;padding:1px 6px;font-size:12px;margin-right:8px;">${esc(contactTypeLabels[c.type] || c.type)}</span><span style="color:#1e293b;">${esc(c.value)}</span></div>`).join('')
+          : '<span style="color:#9ca3af;font-size:13px;">暂无联系方式</span>';
+        return card(sectionTitle('联系方式') + rows);
+      })()
+    : '';
+
+  const linksHtml = fields.links
+    ? (() => {
+        const links = s.links || {};
+        const rows = Object.keys(links).length
+          ? Object.entries(links).map(([platform, url]) => `<div style="font-size:12px;margin-bottom:4px;word-break:break-all;"><span style="color:#475569;font-weight:600;">${esc(platformLabelMap[platform] || platform)}：</span><span style="color:#2563eb;">${esc(url)}</span></div>`).join('')
+          : '<span style="color:#9ca3af;font-size:13px;">暂无平台链接</span>';
+        return card(sectionTitle('平台链接') + rows);
+      })()
+    : '';
+
+  const projectHtml = fields.project
+    ? card(sectionTitle('历史参与项目') + (s.project && s.project.length
+        ? `<div style="font-size:13px;color:#334155;">${s.project.map(esc).join('、')}</div>`
+        : '<span style="color:#9ca3af;font-size:13px;">未设置</span>'))
+    : '';
+
+  const notesHtml = fields.notes
+    ? card(sectionTitle('备注') + (s.notes
+        ? `<div style="font-size:13px;color:#475569;white-space:pre-wrap;line-height:1.7;">${esc(s.notes)}</div>`
+        : '<span style="color:#9ca3af;font-size:13px;">暂无备注</span>'))
+    : '';
+
+  // 风格 + 合作类型并列（有则显示，缺一则另一独占全宽）
+  const stylesCoopRow = (fields.styles || fields.cooperationType)
+    ? `<div style="display:flex;gap:14px;">${stylesHtml ? `<div style="flex:1;">${stylesHtml}</div>` : ''}${coopHtml ? `<div style="flex:1;">${coopHtml}</div>` : ''}</div>`
+    : '';
+
+  // 联系方式 + 平台链接并列
+  const contactLinksRow = (fields.contact || fields.links)
+    ? `<div style="display:flex;gap:14px;">${contactHtml ? `<div style="flex:1;">${contactHtml}</div>` : ''}${linksHtml ? `<div style="flex:1;">${linksHtml}</div>` : ''}</div>`
+    : '';
+
   return `
   <div style="width:760px;padding:28px 32px;background:#f8fafc;font-family:'Microsoft YaHei','PingFang SC',sans-serif;color:#1e293b;box-sizing:border-box;">
-    <!-- 头部 -->
+    <!-- 头部（始终显示） -->
     <div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #e2e8f0;padding-bottom:14px;margin-bottom:18px;">
       <div>
         <div style="font-size:24px;font-weight:800;color:#0f172a;margin-bottom:8px;">${esc(s.name)}</div>
@@ -160,28 +209,18 @@ function buildSupplierCard(
       </div>
     </div>
 
-    ${card(sectionTitle('作品展示') + artworkBlock)}
-
-    <div style="display:flex;gap:14px;">
-      <div style="flex:1;">${card(sectionTitle('擅长风格') + `<div>${styleTags}</div>`)}</div>
-      <div style="flex:1;">${card(sectionTitle('合作类型') + `<div>${coopTags}</div>`)}</div>
-    </div>
-
-    ${card(sectionTitle('报价参考') + priceRows)}
-
-    <div style="display:flex;gap:14px;">
-      <div style="flex:1;">${card(sectionTitle('联系方式') + contactRows)}</div>
-      <div style="flex:1;">${card(sectionTitle('平台链接') + linkRows)}</div>
-    </div>
-
-    ${card(sectionTitle('历史参与项目') + (s.project && s.project.length ? `<div style="font-size:13px;color:#334155;">${s.project.map(esc).join('、')}</div>` : '<span style="color:#9ca3af;font-size:13px;">未设置</span>'))}
-
-    ${card(sectionTitle('备注') + (s.notes ? `<div style="font-size:13px;color:#475569;white-space:pre-wrap;line-height:1.7;">${esc(s.notes)}</div>` : '<span style="color:#9ca3af;font-size:13px;">暂无备注</span>'))}
+    ${artworkBlock}
+    ${stylesCoopRow}
+    ${priceHtml}
+    ${contactLinksRow}
+    ${projectHtml}
+    ${notesHtml}
   </div>`;
 }
 
 interface ExportProgress {
   onProgress?: (current: number, total: number) => void;
+  fields?: ExportFields;
 }
 
 // ── 主入口：导出多个画师为单个 PDF ────────────────────────
@@ -191,12 +230,13 @@ export async function exportSuppliersToPdf(
 ): Promise<void> {
   if (suppliers.length === 0) return;
 
+  const fields = options.fields ?? DEFAULT_EXPORT_FIELDS;
+
   const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
     import('jspdf'),
     import('html2canvas'),
   ]);
 
-  // 离屏容器
   const host = document.createElement('div');
   host.style.position = 'fixed';
   host.style.left = '-10000px';
@@ -216,11 +256,10 @@ export async function exportSuppliersToPdf(
       const s = suppliers[idx];
       options.onProgress?.(idx + 1, suppliers.length);
 
-      // 预加载该画师作品图（缺失的返回 null，显示占位）
-      const works = s.works || [];
+      const works = fields.artworks ? (s.works || []) : [];
       const artworkDataUrls = await Promise.all(works.map((u) => loadImageAsDataUrl(u)));
 
-      host.innerHTML = buildSupplierCard(s, artworkDataUrls);
+      host.innerHTML = buildSupplierCard(s, artworkDataUrls, fields);
       const cardEl = host.firstElementChild as HTMLElement;
 
       const canvas = await html2canvas(cardEl, {
@@ -231,18 +270,15 @@ export async function exportSuppliersToPdf(
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.9);
-      // 按可用宽度等比缩放
       const renderW = usableW;
       const renderH = (canvas.height * renderW) / canvas.width;
 
       if (idx > 0) pdf.addPage();
 
       if (renderH <= usableH) {
-        // 单页放得下，垂直居中靠上
         pdf.addImage(imgData, 'JPEG', margin, margin, renderW, renderH);
       } else {
-        // 卡片过高：按页高切片，跨多页
-        const pxPerPage = (usableH * canvas.width) / renderW; // 每页对应的源像素高度
+        const pxPerPage = (usableH * canvas.width) / renderW;
         let srcY = 0;
         let firstSlice = true;
         while (srcY < canvas.height) {
