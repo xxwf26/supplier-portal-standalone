@@ -132,14 +132,16 @@ function keyInfo(data: Record<string, unknown> | null): string {
 // ── 操作类型配置 ─────────────────────────────────────────
 
 const OP_CONFIG: Record<string, { label: string; borderColor: string; badgeColor: string; icon: React.ReactNode }> = {
-  INSERT:        { label: '新增', borderColor: 'border-green-400',  badgeColor: 'bg-green-50 text-green-700 border-green-200',  icon: <PlusCircleIcon className="w-3 h-3" /> },
-  UPDATE:        { label: '编辑', borderColor: 'border-blue-400',   badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <PencilIcon className="w-3 h-3" /> },
-  DELETE:        { label: '删除', borderColor: 'border-red-400',    badgeColor: 'bg-red-50 text-red-700 border-red-200',      icon: <Trash2Icon className="w-3 h-3" /> },
-  BATCH_ROLLBACK:{ label: '撤销导入', borderColor: 'border-orange-400', badgeColor: 'bg-orange-50 text-orange-700 border-orange-200', icon: <RotateCcwIcon className="w-3 h-3" /> },
-  LOG_ROLLBACK:  { label: '撤回操作', borderColor: 'border-orange-400', badgeColor: 'bg-orange-50 text-orange-700 border-orange-200', icon: <RotateCcwIcon className="w-3 h-3" /> },
+  INSERT:               { label: '新增',     borderColor: 'border-green-400',  badgeColor: 'bg-green-50 text-green-700 border-green-200',   icon: <PlusCircleIcon className="w-3 h-3" /> },
+  UPDATE:               { label: '编辑',     borderColor: 'border-blue-400',   badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',     icon: <PencilIcon className="w-3 h-3" /> },
+  DELETE:               { label: '删除',     borderColor: 'border-red-400',    badgeColor: 'bg-red-50 text-red-700 border-red-200',       icon: <Trash2Icon className="w-3 h-3" /> },
+  BATCH_DELETE:         { label: '批量删除', borderColor: 'border-red-400',    badgeColor: 'bg-red-50 text-red-700 border-red-200',       icon: <Trash2Icon className="w-3 h-3" /> },
+  BATCH_ROLLBACK:       { label: '撤销导入', borderColor: 'border-orange-400', badgeColor: 'bg-orange-50 text-orange-700 border-orange-200', icon: <RotateCcwIcon className="w-3 h-3" /> },
+  BATCH_DELETE_ROLLBACK:{ label: '恢复删除', borderColor: 'border-green-400',  badgeColor: 'bg-green-50 text-green-700 border-green-200',   icon: <RotateCcwIcon className="w-3 h-3" /> },
+  LOG_ROLLBACK:         { label: '撤回操作', borderColor: 'border-orange-400', badgeColor: 'bg-orange-50 text-orange-700 border-orange-200', icon: <RotateCcwIcon className="w-3 h-3" /> },
 };
 
-const ROLLBACKABLE = new Set(['INSERT', 'UPDATE', 'DELETE']);
+const ROLLBACKABLE = new Set(['INSERT', 'UPDATE', 'DELETE', 'BATCH_DELETE']);
 
 // ── 单条日志卡片 ─────────────────────────────────────────
 
@@ -211,6 +213,12 @@ function LogCard({ log, onRollbackSuccess }: { log: IAuditLog; onRollbackSuccess
             )}
             {log.operation === 'DELETE' && (
               <p className="text-xs text-muted-foreground">{keyInfo(log.oldData as Record<string, unknown> | null)}</p>
+            )}
+            {log.operation === 'BATCH_DELETE' && (
+              <p className="text-xs text-muted-foreground">{keyInfo(log.oldData as Record<string, unknown> | null)}</p>
+            )}
+            {log.operation === 'BATCH_DELETE_ROLLBACK' && (
+              <p className="text-xs text-muted-foreground">已恢复画师</p>
             )}
             {log.operation === 'LOG_ROLLBACK' && (
               <p className="text-xs text-muted-foreground">撤回了日志 #{log.batchId}</p>
