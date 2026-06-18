@@ -12,6 +12,7 @@ import { DRIZZLE_DATABASE, type Database } from '../../database/database.module'
 import { suppliers, auditLog } from '../../database/schema';
 import { ISupplier, ICreateSupplierDto, IUpdateSupplierDto, ISupplierFilter, ISupplierListResponse, IBatchCreateResponse } from './supplier.types';
 import { AuditService } from '../audit/audit.service';
+import { normalizeSupplierType } from './supplier-type.util';
 
 @Injectable()
 export class SupplierService {
@@ -104,7 +105,9 @@ export class SupplierService {
       contactInfo: data.contactInfo ? data.contactInfo.slice(0, 500) : null,
       contactItems: data.contactItems || [],
       cooperationCategory: data.cooperationCategory || null,
-      supplierType: data.supplierType || null,
+      supplierType: data.supplierType
+        ? normalizeSupplierType(data.supplierType, data.accountName || '')
+        : null,
       importSource: options.importSource || 'manual',
       importBatchId: options.importBatchId || null,
       noteImages: data.noteImages || [],
@@ -168,7 +171,9 @@ export class SupplierService {
     if (data.contactItems !== undefined) updateData.contactItems = data.contactItems;
     if (data.priceItems !== undefined) updateData.priceItems = data.priceItems;
     if (data.cooperationCategory !== undefined) updateData.cooperationCategory = data.cooperationCategory;
-    if (data.supplierType !== undefined) updateData.supplierType = data.supplierType;
+    if (data.supplierType !== undefined) updateData.supplierType = data.supplierType
+      ? normalizeSupplierType(data.supplierType, data.accountName || '')
+      : null;
     if (data.artworkUrls !== undefined) updateData.artworkUrls = data.artworkUrls;
     if (data.noteImages !== undefined) updateData.noteImages = data.noteImages;
 
@@ -407,13 +412,13 @@ export class SupplierService {
     const all = await this.db.select().from(suppliers);
 
     const total = all.length;
-    const individualCount = all.filter(s => s.supplierType === '个人').length;
-    const artistCount = all.filter(s => s.supplierType === '艺术家').length;
-    const companyCount = all.filter(s =>
-      s.supplierType === '公司' || s.supplierType === '个体工商户' || s.supplierType === '一般企业'
-    ).length;
-    // 工作室直接按字段计数，不用残差（避免艺术家等其他类型被误算进来）
-    const studioCount = all.filter(s => s.supplierType === '工作室').length;
+    // 按归一化后的中文全称统计，兼容历史未迁移的脏值
+    const typeOf = (s: { supplierType: string | null; accountName: string }) =>
+      normalizeSupplierType(s.supplierType, s.accountName || '');
+    const individualCount = all.filter(s => typeOf(s) === '个人画师').length;
+    const artistCount = all.filter(s => typeOf(s) === '艺术家').length;
+    const studioCount = all.filter(s => typeOf(s) === '工作室').length;
+    const companyCount = all.filter(s => typeOf(s) === '公司').length;
     const activeCount = all.filter(s => s.isInStock && s.riskStatus !== '拉黑').length;
 
     const categoryCount: Record<string, number> = {};
@@ -433,8 +438,8 @@ export class SupplierService {
       total,
       individualCount,
       artistCount,
-      companyCount,
       studioCount,
+      companyCount,
       activeCount,
       categoryCount,
       riskCount,

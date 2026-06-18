@@ -13,13 +13,14 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { SupplierType, SUPPLIER_TYPE_STYLE } from '@/lib/supplierUtils';
 
 import { IPriceItem, IContactItem } from '@/api/types';
 
 export interface IProcessedSupplier {
   id: string;
   name: string;
-  type: 'individual' | 'studio' | 'company' | 'artist';
+  type: SupplierType;
   styles: string[];
   cooperationTypes: string[];
   priceRange: [number, number];
@@ -44,28 +45,7 @@ export interface IProcessedSupplier {
   updatedAt: string;
 }
 
-const typeConfig = {
-  individual: {
-    label: '个人',
-    color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-    icon: UserIcon,
-  },
-  artist: {
-    label: '艺术家',
-    color: 'bg-purple-50 text-purple-600 border-purple-200',
-    icon: AwardIcon,
-  },
-  studio: {
-    label: '工作室',
-    color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-    icon: PaletteIcon,
-  },
-  company: {
-    label: '公司',
-    color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-    icon: Building2Icon,
-  },
-};
+const typeConfig = SUPPLIER_TYPE_STYLE;
 
 const statusConfig = {
   in_stock: {
@@ -243,7 +223,7 @@ const SupplierCard = React.memo(function SupplierCard({
         {/* 风格标签（类型 + 品类 + 风格） */}
         <div className="flex flex-wrap gap-0.5 overflow-hidden" style={{ maxHeight: '34px' }}>
           <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border', typeInfo.color)}>
-            {typeInfo.label}
+            {supplier.type}
           </span>
           {supplier.cooperationCategory && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-200">

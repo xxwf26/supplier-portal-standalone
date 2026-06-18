@@ -60,8 +60,8 @@ export interface ISupplierStatistics {
   total: number;
   individualCount: number;
   artistCount: number;
-  companyCount: number;
   studioCount: number;
+  companyCount: number;
   activeCount: number;
   categoryCount: Record<string, number>;
   riskCount: Record<string, number>;

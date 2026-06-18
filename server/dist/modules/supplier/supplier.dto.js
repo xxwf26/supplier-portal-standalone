@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BatchCreateSupplierDto = exports.UpdateSupplierDto = exports.CreateSupplierDto = void 0;
+exports.BatchDeleteSupplierDto = exports.BatchCreateSupplierDto = exports.UpdateSupplierDto = exports.CreateSupplierDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 class PriceItemDto {
@@ -216,4 +216,14 @@ __decorate([
     (0, class_transformer_1.Type)(() => CreateSupplierDto),
     __metadata("design:type", Array)
 ], BatchCreateSupplierDto.prototype, "items", void 0);
+/** 批量删除入参 */
+class BatchDeleteSupplierDto {
+    ids;
+}
+exports.BatchDeleteSupplierDto = BatchDeleteSupplierDto;
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], BatchDeleteSupplierDto.prototype, "ids", void 0);
 //# sourceMappingURL=supplier.dto.js.map

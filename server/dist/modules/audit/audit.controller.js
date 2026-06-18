@@ -39,6 +39,10 @@ let AuditController = class AuditController {
     rollbackBatch(batchId, req) {
         return this.auditService.rollbackBatch(batchId, req.user?.username ?? 'admin');
     }
+    /** 撤销一次批量删除，整批恢复（管理员） */
+    rollbackDeleteBatch(batchId, req) {
+        return this.auditService.rollbackDeleteBatch(decodeURIComponent(batchId), req.user?.username ?? 'admin');
+    }
     /** 快照列表（管理员） */
     listSnapshots() {
         return this.auditService.listSnapshots();
@@ -92,6 +96,16 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], AuditController.prototype, "rollbackBatch", null);
+__decorate([
+    (0, common_1.Post)('rollback-delete-batch/:batchId'),
+    (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin'),
+    __param(0, (0, common_1.Param)('batchId')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AuditController.prototype, "rollbackDeleteBatch", null);
 __decorate([
     (0, common_1.Get)('snapshots'),
     (0, common_1.UseGuards)(roles_guard_1.RolesGuard),

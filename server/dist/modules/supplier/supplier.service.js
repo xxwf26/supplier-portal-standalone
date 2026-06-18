@@ -32,6 +32,7 @@ const drizzle_orm_1 = require("drizzle-orm");
 const database_module_1 = require("../../database/database.module");
 const schema_1 = require("../../database/schema");
 const audit_service_1 = require("../audit/audit.service");
+const supplier_type_util_1 = require("./supplier-type.util");
 let SupplierService = SupplierService_1 = class SupplierService {
     db;
     auditService;
@@ -105,7 +106,9 @@ let SupplierService = SupplierService_1 = class SupplierService {
             contactInfo: data.contactInfo ? data.contactInfo.slice(0, 500) : null,
             contactItems: data.contactItems || [],
             cooperationCategory: data.cooperationCategory || null,
-            supplierType: data.supplierType || null,
+            supplierType: data.supplierType
+                ? (0, supplier_type_util_1.normalizeSupplierType)(data.supplierType, data.accountName || '')
+                : null,
             importSource: options.importSource || 'manual',
             importBatchId: options.importBatchId || null,
             noteImages: data.noteImages || [],
@@ -184,7 +187,9 @@ let SupplierService = SupplierService_1 = class SupplierService {
         if (data.cooperationCategory !== undefined)
             updateData.cooperationCategory = data.cooperationCategory;
         if (data.supplierType !== undefined)
-            updateData.supplierType = data.supplierType;
+            updateData.supplierType = data.supplierType
+                ? (0, supplier_type_util_1.normalizeSupplierType)(data.supplierType, data.accountName || '')
+                : null;
         if (data.artworkUrls !== undefined)
             updateData.artworkUrls = data.artworkUrls;
         if (data.noteImages !== undefined)
@@ -242,6 +247,40 @@ let SupplierService = SupplierService_1 = class SupplierService {
             }
         }
         return { successCount, failCount, errors };
+    }
+    /**
+     * 批量删除：删前快照 + 事务内逐条记审计（带共享 batchId）再批删。
+     * 每条记 BATCH_DELETE 并保留 oldData，使「单条撤回」与「整批恢复」皆可用。
+     */
+    async batchDelete(ids, operatedBy = 'admin') {
+        // 删除前先创建快照（best-effort，依赖服务器有 mysqldump，失败不阻塞）
+        try {
+            await this.auditService.createSnapshot('pre_batch_delete');
+        }
+        catch (err) {
+            this.logger.warn('Pre-batch-delete snapshot failed (non-blocking):', err);
+        }
+        const batchId = `del_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}_${crypto.randomUUID().slice(0, 8)}`;
+        // 先取出确实存在的记录，用于审计 oldData 与精确计数
+        const rows = await this.db.select().from(schema_1.suppliers).where((0, drizzle_orm_1.inArray)(schema_1.suppliers.id, ids));
+        if (rows.length === 0) {
+            return { deleted: 0, notFound: ids.length, batchId };
+        }
+        await this.db.transaction(async (tx) => {
+            for (const row of rows) {
+                await tx.insert(schema_1.auditLog).values({
+                    operation: 'BATCH_DELETE',
+                    recordId: row.id,
+                    batchId,
+                    oldData: row,
+                    newData: null,
+                    operatedBy,
+                });
+            }
+            await tx.delete(schema_1.suppliers).where((0, drizzle_orm_1.inArray)(schema_1.suppliers.id, rows.map((r) => r.id)));
+        });
+        this.logger.log(`Batch deleted ${rows.length} suppliers (batch ${batchId}) by ${operatedBy}`);
+        return { deleted: rows.length, notFound: ids.length - rows.length, batchId };
     }
     /** 提取字符串中所有长度>=2的连续子串（用于模糊匹配） */
     /** 比较前对名称做规范化：去除括号内容、地名、行业通用词、法人主体后缀 */
@@ -363,11 +402,12 @@ let SupplierService = SupplierService_1 = class SupplierService {
     async getStatistics() {
         const all = await this.db.select().from(schema_1.suppliers);
         const total = all.length;
-        const individualCount = all.filter(s => s.supplierType === '个人').length;
-        const artistCount = all.filter(s => s.supplierType === '艺术家').length;
-        const companyCount = all.filter(s => s.supplierType === '公司' || s.supplierType === '个体工商户' || s.supplierType === '一般企业').length;
-        // 工作室直接按字段计数，不用残差（避免艺术家等其他类型被误算进来）
-        const studioCount = all.filter(s => s.supplierType === '工作室').length;
+        // 按归一化后的中文全称统计，兼容历史未迁移的脏值
+        const typeOf = (s) => (0, supplier_type_util_1.normalizeSupplierType)(s.supplierType, s.accountName || '');
+        const individualCount = all.filter(s => typeOf(s) === '个人画师').length;
+        const artistCount = all.filter(s => typeOf(s) === '艺术家').length;
+        const studioCount = all.filter(s => typeOf(s) === '工作室').length;
+        const companyCount = all.filter(s => typeOf(s) === '公司').length;
         const activeCount = all.filter(s => s.isInStock && s.riskStatus !== '拉黑').length;
         const categoryCount = {};
         all.forEach(s => {
@@ -384,8 +424,8 @@ let SupplierService = SupplierService_1 = class SupplierService {
             total,
             individualCount,
             artistCount,
-            companyCount,
             studioCount,
+            companyCount,
             activeCount,
             categoryCount,
             riskCount,

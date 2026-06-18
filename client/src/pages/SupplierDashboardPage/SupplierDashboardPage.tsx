@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Checkbox } from '@/components/ui/checkbox';
 import HistoryPanel from './HistoryPanel';
 import DuplicateCheckPanel from './DuplicateCheckPanel';
-import { inferSupplierType } from '@/lib/supplierUtils';
+import { normalizeSupplierType } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
 import { ExportFields, DEFAULT_EXPORT_FIELDS, EXPORT_FIELD_LABELS, exportSuppliersToPdf } from './exportSupplierPdf';
 
@@ -48,7 +48,7 @@ const NewSupplierModal = lazy(() => import('./NewSupplierModal'));
 
 // 转换API数据到前端格式
 function processSupplier(raw: ISupplier): IProcessedSupplier {
-  const type = inferSupplierType(raw.accountName || '', raw.supplierType);
+  const type = normalizeSupplierType(raw.supplierType, raw.accountName || '');
 
   const styles: string[] = [];
   if (raw.subCategory) {
@@ -452,7 +452,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
     const lines = selectedSuppliers.map((s, i) => {
       const parts = [
         `${i + 1}. ${s.name}`,
-        `类型: ${s.type === 'individual' ? '个人画师' : s.type === 'artist' ? '艺术家' : s.type === 'studio' ? '工作室' : '公司'}`,
+        `类型: ${s.type}`,
         `状态: ${statusLabelMap[s.status] || s.status}`,
         s.styles.length > 0 ? `风格: ${s.styles.join('、')}` : '',
         s.cooperationTypes.length > 0 ? `合作: ${s.cooperationTypes.join('、')}` : '',

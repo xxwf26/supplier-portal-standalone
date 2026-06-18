@@ -62,6 +62,15 @@ let SupplierController = class SupplierController {
         }
         return this.supplierService.batchCreate(data.items, req.user?.username);
     }
+    async batchDelete(data, req) {
+        if (!data.ids || !Array.isArray(data.ids) || data.ids.length === 0) {
+            throw new common_1.HttpException('请选择要删除的画师', common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (data.ids.length > 500) {
+            throw new common_1.HttpException('单次最多删除 500 条', common_1.HttpStatus.BAD_REQUEST);
+        }
+        return this.supplierService.batchDelete(data.ids, req.user?.username);
+    }
     async create(data, req) {
         if (!data.accountName) {
             throw new common_1.HttpException('账号名称不能为空', common_1.HttpStatus.BAD_REQUEST);
@@ -125,6 +134,16 @@ __decorate([
     __metadata("design:paramtypes", [supplier_dto_1.BatchCreateSupplierDto, Object]),
     __metadata("design:returntype", Promise)
 ], SupplierController.prototype, "batchCreate", null);
+__decorate([
+    (0, common_1.Post)('batch-delete'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [supplier_dto_1.BatchDeleteSupplierDto, Object]),
+    __metadata("design:returntype", Promise)
+], SupplierController.prototype, "batchDelete", null);
 __decorate([
     (0, common_1.Post)(),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

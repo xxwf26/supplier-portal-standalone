@@ -34,6 +34,11 @@ export declare class AuditController {
         deleted: number;
         message: string;
     }>;
+    /** 撤销一次批量删除，整批恢复（管理员） */
+    rollbackDeleteBatch(batchId: string, req: any): Promise<{
+        restored: number;
+        message: string;
+    }>;
     /** 快照列表（管理员） */
     listSnapshots(): {
         filename: string;

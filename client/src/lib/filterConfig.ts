@@ -1,7 +1,8 @@
 // 共享筛选配置 — 全站唯一数据源
 // 由 SystemConfigPage 管理，FilterPanelSection / NewSupplierModal 消费
 
-export const STORAGE_KEY = '__admin_filter_config';
+// v2：供应商类型统一为中文全称（个人画师/艺术家/工作室/公司），升版以丢弃旧浏览器里缓存的英文 value 配置
+export const STORAGE_KEY = '__admin_filter_config_v2';
 
 export interface FilterOption {
   label: string;
@@ -19,10 +20,10 @@ export interface FilterConfig {
 
 export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   supplierType: [
-    { label: '个人画师', value: 'individual', color: 'blue' },
-    { label: '艺术家', value: 'artist', color: 'purple' },
-    { label: '工作室', value: 'studio', color: 'green' },
-    { label: '公司', value: 'company', color: 'amber' },
+    { label: '个人画师', value: '个人画师', color: 'blue' },
+    { label: '艺术家', value: '艺术家', color: 'purple' },
+    { label: '工作室', value: '工作室', color: 'green' },
+    { label: '公司', value: '公司', color: 'amber' },
   ],
   cooperationType: [
     { label: '角色原画', value: '角色原画' },
@@ -86,8 +87,3 @@ export const CATEGORY_LABELS: Record<string, string> = {
   cooperationStatus: '合作状态',
   project: '所属项目',
 };
-
-/** 从 config label 推算后端 supplierType 值 */
-export function supplierTypeToBackend(label: string): string {
-  return label.replace(/画师$/, '');
-}

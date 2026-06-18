@@ -40,6 +40,12 @@ export declare class AuditService {
         deleted: number;
         message: string;
     }>;
+    rollbackDeleteBatch(batchId: string, operatedBy: string): Promise<{
+        restored: number;
+        message: string;
+    }>;
+    /** 从审计 oldData 还原一条 suppliers 插入行（撤回删除时复用） */
+    private buildSupplierRow;
     rollbackLog(logId: number, operatedBy: string): Promise<{
         message: string;
     }>;

@@ -36,16 +36,10 @@ import { getDefaultBucketId } from '@/lib/polyfills/storage';
 import { useAuth } from '@/lib/auth';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import { configApi } from '@/api/config';
-import { supplierTypeToBackend } from '@/lib/filterConfig';
-import { inferSupplierType } from '@/lib/supplierUtils';
+import { normalizeSupplierType, SUPPLIER_TYPE_STYLE } from '@/lib/supplierUtils';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
 
-const typeConfig = {
-  individual: { label: '个人画师', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  artist: { label: '艺术家', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  studio: { label: '工作室', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  company: { label: '公司', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-};
+const typeConfig = SUPPLIER_TYPE_STYLE;
 
 const statusConfig = {
   in_stock:   { label: '库内合作', color: 'bg-green-100 text-green-700 border-green-200',  dotColor: 'bg-green-500' },
@@ -414,7 +408,7 @@ export default function SupplierDetailModal({
       setCooperationCountVal(String(supplier.cooperationCount || 0));
       setRatingVal(supplier.rating != null ? String(supplier.rating) : '');
       setStatusVal(getStatusFromData(supplier));
-      setSupplierTypeVal(supplier.supplierType || '');
+      setSupplierTypeVal(normalizeSupplierType(supplier.supplierType, supplier.accountName || ''));
       setNameVal(supplier.accountName || '');
     setStyleTags(
       supplier.subCategory
@@ -625,7 +619,7 @@ export default function SupplierDetailModal({
         rating: ratingVal ? Number(ratingVal) : null,
         subCategory: styleTags.join('、') || null,
         contactInfo: contactInfoText,
-        supplierType: supplierTypeVal ? supplierTypeToBackend(supplierTypeVal) : undefined,
+        supplierType: supplierTypeVal || undefined,
         entityType: entityTypeVal || null,
         isInStock: statusVal === 'in_stock',
         riskStatus: statusVal === 'blacklisted' ? '拉黑' : statusVal === 'outreach' ? '暂无' : '未填写',
@@ -670,7 +664,7 @@ export default function SupplierDetailModal({
   Object.entries(supplier.socialLinks || {}).forEach(([k, v]) => { if (v) allLinks[k] = v; });
   Object.entries(supplier.manualLinks || {}).forEach(([k, v]) => { if (v) allLinks[k] = v; });
 
-  const type = inferSupplierType(supplier.accountName || '', supplier.supplierType);
+  const type = normalizeSupplierType(supplier.supplierType, supplier.accountName || '');
 
   const status = getStatusFromData(supplier);
   const typeInfo = typeConfig[type];
@@ -756,7 +750,7 @@ export default function SupplierDetailModal({
                   </Select>
                 ) : (
                   <Badge variant="outline" className={cn(typeInfo.color, 'text-xs')}>
-                    {typeInfo.label}
+                    {type}
                   </Badge>
                 )}
                 {isAdmin && (

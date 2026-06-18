@@ -45,5 +45,9 @@ export declare class UpdateSupplierDto extends CreateSupplierDto {
 export declare class BatchCreateSupplierDto {
     items: CreateSupplierDto[];
 }
+/** 批量删除入参 */
+export declare class BatchDeleteSupplierDto {
+    ids: string[];
+}
 export {};
 //# sourceMappingURL=supplier.dto.d.ts.map
