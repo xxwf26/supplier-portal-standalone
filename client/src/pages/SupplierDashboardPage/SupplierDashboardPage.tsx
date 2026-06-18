@@ -46,6 +46,23 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 const ExcelImportModal = lazy(() => import('./ExcelImportModal'));
 const NewSupplierModal = lazy(() => import('./NewSupplierModal'));
 
+// 容错：数据库 JSON 列有时回传字符串（含历史脏数据被双重编码的情况），
+// 统一转成数组/对象，避免单条坏数据 .map 崩溃整页
+function toArray<T>(v: unknown): T[] {
+  if (Array.isArray(v)) return v as T[];
+  if (typeof v === 'string') {
+    try { const p = JSON.parse(v); return Array.isArray(p) ? (p as T[]) : []; } catch { return []; }
+  }
+  return [];
+}
+function toObject(v: unknown): Record<string, string> {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, string>;
+  if (typeof v === 'string') {
+    try { const p = JSON.parse(v); return p && typeof p === 'object' && !Array.isArray(p) ? p : {}; } catch { return {}; }
+  }
+  return {};
+}
+
 // 转换API数据到前端格式
 function processSupplier(raw: ISupplier): IProcessedSupplier {
   const type = normalizeSupplierType(raw.supplierType, raw.accountName || '');
@@ -64,7 +81,7 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
 
   let priceRange: [number, number] = [0, 0];
   let hasPrice = false;
-  const priceItems = raw.priceItems || [];
+  const priceItems = toArray<NonNullable<ISupplier['priceItems']>[number]>(raw.priceItems);
   if (priceItems.length > 0) {
     const prices = priceItems.map((p) => p.unitPrice).filter((p) => p > 0);
     if (prices.length > 0) {
@@ -102,10 +119,10 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
   }
 
   const links: Record<string, string> = {};
-  Object.entries(raw.socialLinks || {}).forEach(([key, url]) => {
+  Object.entries(toObject(raw.socialLinks)).forEach(([key, url]) => {
     if (url) links[key] = url;
   });
-  Object.entries(raw.manualLinks || {}).forEach(([key, url]) => {
+  Object.entries(toObject(raw.manualLinks)).forEach(([key, url]) => {
     if (url) links[key] = url;
   });
 
@@ -118,7 +135,7 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
     if (emailMatch) contacts.email = emailMatch[1];
   }
 
-  const contactItems = raw.contactItems || [];
+  const contactItems = toArray<NonNullable<ISupplier['contactItems']>[number]>(raw.contactItems);
 
   return {
     id: raw.id,
@@ -136,7 +153,7 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
     contacts,
     links,
     notes: raw.contactInfo,
-    works: raw.artworkUrls,
+    works: toArray<string>(raw.artworkUrls),
     history: [],
     rating: raw.rating,
     cooperationCount: raw.cooperationCount,

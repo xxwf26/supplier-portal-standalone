@@ -117,6 +117,22 @@ interface SupplierDetailModalProps {
 const MAX_PRICE_ITEMS = 5;
 const MAX_CONTACT_ITEMS = 10;
 
+// 容错：JSON 列可能以字符串/双重编码形式回传，统一转数组/对象，避免脏数据崩溃
+function toArr<T>(v: unknown): T[] {
+  if (Array.isArray(v)) return v as T[];
+  if (typeof v === 'string') {
+    try { const p = JSON.parse(v); return Array.isArray(p) ? (p as T[]) : []; } catch { return []; }
+  }
+  return [];
+}
+function toObj(v: unknown): Record<string, string> {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, string>;
+  if (typeof v === 'string') {
+    try { const p = JSON.parse(v); return p && typeof p === 'object' && !Array.isArray(p) ? p : {}; } catch { return {}; }
+  }
+  return {};
+}
+
 // ── 全屏灯箱 ────────────────────────────────────────────
 function LightboxOverlay({
   urls,
@@ -380,21 +396,21 @@ export default function SupplierDetailModal({
 
   const resetForm = () => {
     if (!supplier) return;
-    setArtworkUrls(supplier.artworkUrls || []);
-    setNoteImages(supplier.noteImages || []);
-    const entries: ManualLinkEntry[] = Object.entries(supplier.manualLinks || {})
+    setArtworkUrls(toArr<string>(supplier.artworkUrls));
+    setNoteImages(toArr<string>(supplier.noteImages));
+    const entries: ManualLinkEntry[] = Object.entries(toObj(supplier.manualLinks))
       .filter(([, v]) => v)
       .map(([platform, url]) => ({ platform, url }));
     setManualLinkEntries(entries);
     setPriceItemEntries(
-      (supplier.priceItems || []).map((p) => ({
+      toArr<IPriceItem>(supplier.priceItems).map((p) => ({
         cooperationType: p.cooperationType,
         unitPrice: String(p.unitPrice),
         priceUnit: p.priceUnit,
       }))
     );
     setContactItemEntries(
-      (supplier.contactItems || []).map((c) => ({
+      toArr<IContactItem>(supplier.contactItems).map((c) => ({
         type: c.type,
         value: c.value,
       }))
@@ -661,8 +677,13 @@ export default function SupplierDetailModal({
   if (!supplier) return null;
 
   const allLinks: Record<string, string> = {};
-  Object.entries(supplier.socialLinks || {}).forEach(([k, v]) => { if (v) allLinks[k] = v; });
-  Object.entries(supplier.manualLinks || {}).forEach(([k, v]) => { if (v) allLinks[k] = v; });
+  Object.entries(toObj(supplier.socialLinks)).forEach(([k, v]) => { if (v) allLinks[k] = v; });
+  Object.entries(toObj(supplier.manualLinks)).forEach(([k, v]) => { if (v) allLinks[k] = v; });
+
+  // 查看模式下渲染用的规范化 JSON 字段（容错脏数据）
+  const priceItemsView = toArr<IPriceItem>(supplier.priceItems);
+  const contactItemsView = toArr<IContactItem>(supplier.contactItems);
+  const socialLinksView = toObj(supplier.socialLinks);
 
   const type = normalizeSupplierType(supplier.supplierType, supplier.accountName || '');
 
@@ -1190,12 +1211,12 @@ export default function SupplierDetailModal({
                     )}
                   </div>
                 ) : (
-                  supplier.priceItems && supplier.priceItems.length > 0 ? (
+                  priceItemsView.length > 0 ? (
                     <div className="space-y-0">
-                      {supplier.priceItems.map((item, i) => (
+                      {priceItemsView.map((item, i) => (
                         <div key={i} className={cn(
                           'flex items-center justify-between py-1.5 px-1',
-                          i < supplier.priceItems!.length - 1 && 'border-b border-border/30'
+                          i < priceItemsView.length - 1 && 'border-b border-border/30'
                         )}>
                           <Badge variant="outline" className="text-[10px] bg-muted/30">{item.cooperationType}</Badge>
                           <div className="flex items-baseline gap-1">
@@ -1263,9 +1284,9 @@ export default function SupplierDetailModal({
                       )}
                     </div>
                   ) : (
-                    supplier.contactItems && supplier.contactItems.length > 0 ? (
+                    contactItemsView.length > 0 ? (
                       <div className="space-y-1">
-                        {supplier.contactItems.map((item, i) => (
+                        {contactItemsView.map((item, i) => (
                           <div key={i} className="flex items-center gap-1.5 text-xs">
                             <Badge variant="outline" className="text-[10px] bg-muted/30 shrink-0">
                               {contactTypeLabels[item.type] || item.type}
@@ -1299,7 +1320,7 @@ export default function SupplierDetailModal({
                 <div className={moduleBody}>
                   {isEditing ? (
                     <div className="space-y-1.5">
-                      {Object.entries(supplier.socialLinks || {}).filter(([, v]) => v).map(([platform, url]) => (
+                      {Object.entries(socialLinksView).filter(([, v]) => v).map(([platform, url]) => (
                         <div key={platform} className="flex items-center gap-1.5 text-xs">
                           <span className="w-12 text-muted-foreground shrink-0 text-[10px]">
                             {platformLabels[platform] || platform}

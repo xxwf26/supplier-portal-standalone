@@ -168,14 +168,15 @@ export class AuditService {
 
   /** 从审计 oldData 还原一条 suppliers 插入行（撤回删除时复用） */
   private buildSupplierRow(old: Record<string, unknown>): any {
+    // JSON 列在 oldData 里可能是字符串，需先 parse，否则会被再次编码成字符串（双重编码）
     return {
       id: old.id,
       accountName: old.accountName,
-      socialLinks: old.socialLinks || {},
+      socialLinks: parseJsonField(old.socialLinks) ?? {},
       subCategory: old.subCategory || null,
       cooperationType: old.cooperationType || null,
       priceRange: old.priceRange || null,
-      priceItems: old.priceItems || [],
+      priceItems: parseJsonField(old.priceItems) ?? [],
       cooperationCount: Number(old.cooperationCount) || 0,
       rating: old.rating !== undefined && old.rating !== null ? Number(old.rating) : null,
       riskStatus: old.riskStatus || '暂无',
@@ -187,12 +188,12 @@ export class AuditService {
       contractDeadline: parseDateField(old.contractDeadline),
       taxStatus: old.taxStatus || null,
       contactInfo: old.contactInfo || null,
-      contactItems: old.contactItems || [],
+      contactItems: parseJsonField(old.contactItems) ?? [],
       cooperationCategory: old.cooperationCategory || null,
       supplierType: old.supplierType || null,
-      artworkUrls: old.artworkUrls || [],
-      manualLinks: old.manualLinks || {},
-      noteImages: old.noteImages || [],
+      artworkUrls: parseJsonField(old.artworkUrls) ?? [],
+      manualLinks: parseJsonField(old.manualLinks) ?? {},
+      noteImages: parseJsonField(old.noteImages) ?? [],
       importSource: old.importSource || 'manual',
       importBatchId: old.importBatchId || null,
       createdAt: parseDateField(old.createdAt) ?? new Date(),
