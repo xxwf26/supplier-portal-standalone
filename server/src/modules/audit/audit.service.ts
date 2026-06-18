@@ -192,6 +192,7 @@ export class AuditService {
       supplierType: old.supplierType || null,
       artworkUrls: old.artworkUrls || [],
       manualLinks: old.manualLinks || {},
+      noteImages: old.noteImages || [],
       importSource: old.importSource || 'manual',
       importBatchId: old.importBatchId || null,
       createdAt: parseDateField(old.createdAt) ?? new Date(),
