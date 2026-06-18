@@ -45,6 +45,14 @@ export class AuditController {
     return this.auditService.rollbackBatch(batchId, req.user?.username ?? 'admin');
   }
 
+  /** 撤销一次批量删除，整批恢复（管理员） */
+  @Post('rollback-delete-batch/:batchId')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  rollbackDeleteBatch(@Param('batchId') batchId: string, @Request() req: any) {
+    return this.auditService.rollbackDeleteBatch(decodeURIComponent(batchId), req.user?.username ?? 'admin');
+  }
+
   /** 快照列表（管理员） */
   @Get('snapshots')
   @UseGuards(RolesGuard)

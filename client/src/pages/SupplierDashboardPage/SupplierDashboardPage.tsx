@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
 import FilterPanelSection, { IFilterState, STORAGE_KEY } from './FilterPanelSection';
 import SupplierGridSection, { IProcessedSupplier } from './SupplierGridSection';
 import SupplierDetailModal from './SupplierDetailModal';
 import { supplierApi } from '@/api/supplier';
+import { auditApi } from '@/api/audit';
 import { ISupplier } from '@/api/types';
 import { logger } from '@/lib/polyfills/logger';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,10 @@ import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/lib/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import HistoryPanel from './HistoryPanel';
@@ -349,6 +354,48 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   }, [selectedIds, selectedSuppliers]);
 
   const [isExporting, setIsExporting] = useState(false);
+  const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // 已选画师名单（含被筛选隐藏的项）——从原始列表按 id 解析，用于删除确认弹窗
+  const selectedNames = useMemo(() => {
+    return rawSuppliers
+      .filter((s) => selectedIds.has(s.id))
+      .map((s) => s.accountName || '(未命名)');
+  }, [rawSuppliers, selectedIds]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0 || isDeleting) return;
+    setConfirmBatchDelete(false);
+    setIsDeleting(true);
+    const ids = Array.from(selectedIds);
+    try {
+      const { deleted, batchId } = await supplierApi.batchDelete(ids);
+      handleClearSelection();
+      await fetchSuppliers();
+      toast.success(`已删除 ${deleted} 位画师`, {
+        action: {
+          label: '撤销',
+          onClick: async () => {
+            try {
+              const { restored } = await auditApi.rollbackDeleteBatch(batchId);
+              await fetchSuppliers();
+              toast.success(`已恢复 ${restored} 位画师`);
+            } catch (err) {
+              logger.error('Batch delete rollback failed:', String(err));
+              toast.error('撤销失败，可在「变更记录」中手动恢复');
+            }
+          },
+        },
+        duration: 10000,
+      });
+    } catch (err) {
+      logger.error('Batch delete failed:', String(err));
+      toast.error('批量删除失败，请重试');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedIds, isDeleting, handleClearSelection, fetchSuppliers]);
 
   const handleExportPdf = useCallback(async () => {
     if (selectedSuppliers.length === 0 || isExporting) return;
@@ -755,6 +802,22 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
                 <CopyIcon className="w-3.5 h-3.5" />
                 复制名单
               </Button>
+
+              {isAdmin && (
+                <>
+                  <div className="w-px h-5 bg-border" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setConfirmBatchDelete(true)}
+                    disabled={isDeleting}
+                  >
+                    <Trash2Icon className="w-3.5 h-3.5" />
+                    {isDeleting ? '删除中…' : '批量删除'}
+                  </Button>
+                </>
+              )}
             </div>
           </motion.div>
         )}
@@ -778,6 +841,37 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
 
       <HistoryPanel open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onDataChange={fetchSuppliers} />
       <DuplicateCheckPanel open={isDuplicateOpen} onClose={() => setIsDuplicateOpen(false)} onDeleted={fetchSuppliers} suppliers={rawSuppliers} />
+
+      <AlertDialog open={confirmBatchDelete} onOpenChange={setConfirmBatchDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除选中的 {selectedIds.size} 位画师？</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>删除后可在弹窗「撤销」或「变更记录」中整批恢复。</p>
+                {hiddenSelectedCount > 0 && (
+                  <p className="text-amber-600">
+                    其中 {hiddenSelectedCount} 位当前被筛选/搜索隐藏，也将一并删除。
+                  </p>
+                )}
+                <div className="max-h-32 overflow-y-auto rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                  {selectedNames.slice(0, 12).join('、')}
+                  {selectedNames.length > 12 && ` 等 ${selectedNames.length} 位`}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleBatchDelete}
+            >
+              确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

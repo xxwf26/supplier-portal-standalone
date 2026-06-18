@@ -50,4 +50,9 @@ export const supplierApi = {
     const res = await axiosForBackend({ url: '/api/suppliers/batch', method: 'POST', data: { items } });
     return res.data;
   },
+
+  batchDelete: async (ids: string[]): Promise<{ deleted: number; notFound: number; batchId: string }> => {
+    const res = await axiosForBackend({ url: '/api/suppliers/batch-delete', method: 'POST', data: { ids } });
+    return res.data;
+  },
 };

@@ -149,3 +149,10 @@ export class BatchCreateSupplierDto {
   @Type(() => CreateSupplierDto)
   items!: CreateSupplierDto[];
 }
+
+/** 批量删除入参 */
+export class BatchDeleteSupplierDto {
+  @IsArray()
+  @IsString({ each: true })
+  ids!: string[];
+}

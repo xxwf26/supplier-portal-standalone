@@ -9,7 +9,7 @@ function parseJson<T>(value: unknown, fallback: T): T {
 }
 import { eq, and, or, like, inArray, SQL, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
-import { suppliers } from '../../database/schema';
+import { suppliers, auditLog } from '../../database/schema';
 import { ISupplier, ICreateSupplierDto, IUpdateSupplierDto, ISupplierFilter, ISupplierListResponse, IBatchCreateResponse } from './supplier.types';
 import { AuditService } from '../audit/audit.service';
 
@@ -229,6 +229,47 @@ export class SupplierService {
     }
 
     return { successCount, failCount, errors };
+  }
+
+  /**
+   * 批量删除：删前快照 + 事务内逐条记审计（带共享 batchId）再批删。
+   * 每条记 BATCH_DELETE 并保留 oldData，使「单条撤回」与「整批恢复」皆可用。
+   */
+  async batchDelete(
+    ids: string[],
+    operatedBy = 'admin',
+  ): Promise<{ deleted: number; notFound: number; batchId: string }> {
+    // 删除前先创建快照（best-effort，依赖服务器有 mysqldump，失败不阻塞）
+    try {
+      await this.auditService.createSnapshot('pre_batch_delete');
+    } catch (err) {
+      this.logger.warn('Pre-batch-delete snapshot failed (non-blocking):', err);
+    }
+
+    const batchId = `del_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}_${crypto.randomUUID().slice(0, 8)}`;
+
+    // 先取出确实存在的记录，用于审计 oldData 与精确计数
+    const rows = await this.db.select().from(suppliers).where(inArray(suppliers.id, ids));
+    if (rows.length === 0) {
+      return { deleted: 0, notFound: ids.length, batchId };
+    }
+
+    await this.db.transaction(async (tx) => {
+      for (const row of rows) {
+        await tx.insert(auditLog).values({
+          operation: 'BATCH_DELETE',
+          recordId: row.id,
+          batchId,
+          oldData: row,
+          newData: null,
+          operatedBy,
+        });
+      }
+      await tx.delete(suppliers).where(inArray(suppliers.id, rows.map((r) => r.id)));
+    });
+
+    this.logger.log(`Batch deleted ${rows.length} suppliers (batch ${batchId}) by ${operatedBy}`);
+    return { deleted: rows.length, notFound: ids.length - rows.length, batchId };
   }
 
   /** 提取字符串中所有长度>=2的连续子串（用于模糊匹配） */
