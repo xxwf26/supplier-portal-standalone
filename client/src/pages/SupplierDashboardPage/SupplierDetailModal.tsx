@@ -148,8 +148,9 @@ function LightboxOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[200] bg-black/92 flex items-center justify-center"
+      className="fixed inset-0 z-[200] bg-black/92 flex items-center justify-center pointer-events-auto"
       onClick={onClose}
+      onPointerDown={e => e.stopPropagation()}
     >
       {/* 关闭 */}
       <button
@@ -703,8 +704,16 @@ export default function SupplierDetailModal({
         aria-describedby={undefined}
         className="max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden"
         showCloseButton={false}
-        onPointerDownOutside={(e) => { if (isEditing) { e.preventDefault(); setShowConfirm(true); } }}
-        onEscapeKeyDown={(e) => { if (isEditing) { e.preventDefault(); setShowConfirm(true); } }}
+        onPointerDownOutside={(e) => {
+          // 灯箱开着时，点击灯箱不应关闭详情弹窗
+          if (lightboxIndex !== null || noteLightboxIndex !== null) { e.preventDefault(); return; }
+          if (isEditing) { e.preventDefault(); setShowConfirm(true); }
+        }}
+        onEscapeKeyDown={(e) => {
+          // 灯箱开着时，Esc 只交给灯箱自身关闭，不关详情弹窗
+          if (lightboxIndex !== null || noteLightboxIndex !== null) { e.preventDefault(); return; }
+          if (isEditing) { e.preventDefault(); setShowConfirm(true); }
+        }}
       >
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
