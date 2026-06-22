@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { UsersIcon, UserIcon, Building2Icon, BuildingIcon, ActivityIcon, AwardIcon } from 'lucide-react';
+import { UsersIcon, UserIcon, Building2Icon, BuildingIcon, AwardIcon } from 'lucide-react';
 import { supplierApi } from '@/api/supplier';
 import { ISupplierStatistics } from '@/api/types';
 import { logger } from '@/lib/polyfills/logger';
@@ -80,7 +80,6 @@ export default function HeaderSection({ viewMode = 'pc' }: HeaderSectionProps) {
     { icon: <AwardIcon className="w-5 h-5 text-white" />, label: '艺术家', value: loading ? 0 : stats.artistCount, delay: 0.3 },
     { icon: <BuildingIcon className="w-5 h-5 text-white" />, label: '工作室', value: loading ? 0 : studioCount, delay: 0.4 },
     { icon: <Building2Icon className="w-5 h-5 text-white" />, label: '公司', value: loading ? 0 : stats.companyCount, delay: 0.5 },
-    { icon: <ActivityIcon className="w-5 h-5 text-white" />, label: '库内合作供应商', value: loading ? 0 : stats.activeCount, delay: 0.6 },
   ];
 
   return (

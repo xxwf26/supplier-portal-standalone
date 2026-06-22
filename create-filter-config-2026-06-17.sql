@@ -5,7 +5,9 @@
 -- 在每个需要该功能的数据库上执行一次（本地 + 伙伴的权威库）。
 -- 用 MySQL Workbench 执行。建表用 IF NOT EXISTS；种子先清空再插入，
 -- 若已有自定义配置，勿重复跑种子段。
--- 供应商类型沿用现有体系：label=中文展示，value=英文枚举(individual/artist/studio/company)。
+-- 供应商类型：label=value=中文全称(个人画师/艺术家/工作室/公司)，与 normalizeSupplierType
+-- 归一化结果及前端筛选比对保持一致（旧版曾用英文枚举 individual/... 已弃用，详见
+-- fix-filter-config-supplier-type-value-2026-06-22.sql）。
 -- ============================================================
 
 USE supplier_portal;
@@ -29,11 +31,11 @@ CREATE TABLE IF NOT EXISTS `filter_config` (
 DELETE FROM `filter_config`;
 
 INSERT INTO `filter_config` (`id`, `category`, `label`, `value`, `color`, `sort_order`, `enabled`) VALUES
--- 供应商类型（value 为英文枚举，与 inferSupplierType / 筛选保持一致）
-(UUID(), 'supplierType', '个人画师', 'individual', 'blue',   0, TRUE),
-(UUID(), 'supplierType', '艺术家',   'artist',     'purple', 1, TRUE),
-(UUID(), 'supplierType', '工作室',   'studio',     'green',  2, TRUE),
-(UUID(), 'supplierType', '公司',     'company',    'amber',  3, TRUE),
+-- 供应商类型（value=label=中文全称，与 normalizeSupplierType / 筛选保持一致）
+(UUID(), 'supplierType', '个人画师', '个人画师', 'blue',   0, TRUE),
+(UUID(), 'supplierType', '艺术家',   '艺术家',   'purple', 1, TRUE),
+(UUID(), 'supplierType', '工作室',   '工作室',   'green',  2, TRUE),
+(UUID(), 'supplierType', '公司',     '公司',     'amber',  3, TRUE),
 -- 合作类型
 (UUID(), 'cooperationType', '角色原画', '角色原画', NULL, 0,  TRUE),
 (UUID(), 'cooperationType', '场景原画', '场景原画', NULL, 1,  TRUE),
