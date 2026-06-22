@@ -130,9 +130,16 @@ export default function FilterPanelSection({
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // 迁移：旧默认值 [500,10000] → [0,10000]，不应视为用户主动设置
+        // 迁移：旧价格区间默认值
         if (parsed.priceRange?.[0] === 500 && parsed.priceRange?.[1] === 10000) {
           parsed.priceRange = [0, 10000];
+        }
+        // 迁移：供应商类型从英文 code 改为中文全称（fix/supplier-type-unification）
+        const typeMap: Record<string, string> = {
+          individual: '个人画师', artist: '艺术家', studio: '工作室', company: '公司',
+        };
+        if (Array.isArray(parsed.types)) {
+          parsed.types = parsed.types.map((t: string) => typeMap[t] ?? t);
         }
         setFilters(prev => ({ ...prev, ...parsed }));
       }
