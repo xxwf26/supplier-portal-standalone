@@ -98,6 +98,14 @@ export class ConfigService {
     return `「${label}」正被 ${names.length} 个画师使用（${shown}${more}），请先修改这些画师后再${action}`;
   }
 
+  /** 抛出"选项被占用"异常，payload 带完整名单——前端可结构化展示（不止 5 个） */
+  private throwInUse(label: string, names: string[], action: string): never {
+    throw new BadRequestException({
+      message: this.buildInUseMessage(label, names, action),
+      inUse: { label, action, count: names.length, names },
+    });
+  }
+
   async create(data: { category: string; label: string; value?: string; color?: string; note?: string; sort_order?: number }) {
     if (data.category === 'supplierType') {
       throw new BadRequestException('供应商类型为固定字段，暂不支持新增或删除');
@@ -128,7 +136,7 @@ export class ConfigService {
     if (nextValue !== undefined && nextValue !== current.value) {
       const inUse = await this.findSuppliersUsingOption(current.category, current.value);
       if (inUse.length > 0) {
-        throw new BadRequestException(this.buildInUseMessage(current.label, inUse, '修改取值'));
+        this.throwInUse(current.label, inUse, '修改取值');
       }
     }
 
@@ -155,7 +163,7 @@ export class ConfigService {
     // 禁止删除：有画师在用该选项则拒绝，并列出名单
     const inUse = await this.findSuppliersUsingOption(current.category, current.value);
     if (inUse.length > 0) {
-      throw new BadRequestException(this.buildInUseMessage(current.label, inUse, '删除'));
+      this.throwInUse(current.label, inUse, '删除');
     }
 
     await this.db.delete(filterConfig).where(eq(filterConfig.id, id));

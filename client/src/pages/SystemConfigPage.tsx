@@ -22,6 +22,21 @@ function errMsg(e: unknown, fallback: string): string {
   return anyE?.response?.data?.error?.message || anyE?.response?.data?.message || fallback;
 }
 
+/** 选项被画师占用时的结构化信息（后端放在 error.details 的 JSON 里） */
+interface InUseInfo { label: string; action: string; count: number; names: string[] }
+
+/** 从错误里解析后端返回的"选项被占用"名单；非该类错误返回 null */
+function parseInUse(e: unknown): InUseInfo | null {
+  const details = (e as { response?: { data?: { error?: { details?: string } } } })
+    ?.response?.data?.error?.details;
+  if (!details) return null;
+  try {
+    const parsed = JSON.parse(details);
+    if (parsed?.inUse?.names) return parsed.inUse as InUseInfo;
+  } catch { /* 非结构化，忽略 */ }
+  return null;
+}
+
 export default function SystemConfigPage() {
   const { isAdmin } = useAuth();
   if (!isAdmin) return <div className="p-10 text-center text-muted-foreground">仅管理员可访问</div>;
@@ -71,6 +86,8 @@ function ConfigManager() {
   const [newNote, setNewNote] = useState('');
   const [newColor, setNewColor] = useState('');
   const [busy, setBusy] = useState(false);
+  // 删除/改值被画师占用时的结构化名单（弹窗展示，替代把名单拍平成一行 alert）
+  const [inUseInfo, setInUseInfo] = useState<InUseInfo | null>(null);
 
   const startEdit = (item: IFilterOption) => {
     setEditingId(item.id); setEditLabel(item.label); setEditNote(item.note || '');
@@ -84,7 +101,9 @@ function ConfigManager() {
       setEditingId(null);
       await reload();
     } catch (e) {
-      alert(errMsg(e, '保存失败'));
+      const info = parseInUse(e);
+      if (info) setInUseInfo(info);
+      else alert(errMsg(e, '保存失败'));
     } finally {
       setBusy(false);
     }
@@ -118,8 +137,10 @@ function ConfigManager() {
       await configApi.delete(item.id);
       await reload();
     } catch (e) {
-      // 阶段2：后端会在有画师使用该选项时拒绝删除并返回使用名单
-      alert(errMsg(e, '删除失败'));
+      // 有画师在用则后端拒绝并返回名单：结构化弹窗展示，否则退回普通 alert
+      const info = parseInUse(e);
+      if (info) setInUseInfo(info);
+      else alert(errMsg(e, '删除失败'));
     } finally {
       setBusy(false);
     }
@@ -213,6 +234,31 @@ function ConfigManager() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {inUseInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setInUseInfo(null)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b">
+              <h3 className="font-semibold text-orange-600">无法{inUseInfo.action}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                「{inUseInfo.label}」正被 <strong>{inUseInfo.count}</strong> 个画师使用，请先修改这些画师后再{inUseInfo.action}。
+              </p>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <div className="flex flex-wrap gap-1.5">
+                {inUseInfo.names.map((n, i) => (
+                  <span key={i} className="px-2 py-0.5 bg-muted rounded text-xs text-foreground">{n}</span>
+                ))}
+              </div>
+            </div>
+            <div className="p-3 border-t text-right">
+              <button onClick={() => setInUseInfo(null)} className="px-4 py-1.5 bg-primary text-white rounded text-sm font-medium hover:opacity-80">
+                知道了
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

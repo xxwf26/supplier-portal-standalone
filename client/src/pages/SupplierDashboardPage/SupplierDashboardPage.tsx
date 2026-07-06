@@ -27,6 +27,7 @@ import HistoryPanel from './HistoryPanel';
 import DuplicateCheckPanel from './DuplicateCheckPanel';
 import { normalizeSupplierType } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ExportFields, DEFAULT_EXPORT_FIELDS, EXPORT_FIELD_LABELS, exportSuppliersToPdf } from './exportSupplierPdf';
 
 const EXPORT_FIELDS_STORAGE_KEY = '__export_fields';
@@ -171,12 +172,15 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [rawSuppliers, setRawSuppliers] = useState<ISupplier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [currentFilters, setCurrentFilters] = useState<IFilterState | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
+  // 搜索防抖：输入框即时回显 keyword，实际过滤用 debouncedKeyword，避免每次按键全量重算
+  const debouncedKeyword = useDebouncedValue(keyword, 300);
   const [sortKey, setSortKey] = useState<SortKey>('default');
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [filterResetKey, setFilterResetKey] = useState(0);
@@ -265,7 +269,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   const displaySuppliers = useMemo(() => {
     let result = filteredSuppliers;
 
-    const kw = normalizeForSearch(keyword.trim());
+    const kw = normalizeForSearch(debouncedKeyword.trim());
     if (kw) {
       result = result.filter((s) => {
         if (normalizeForSearch(s.name).includes(kw)) return true;
@@ -304,15 +308,17 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
     }
 
     return result;
-  }, [filteredSuppliers, keyword, sortKey]);
+  }, [filteredSuppliers, debouncedKeyword, sortKey]);
 
   const fetchSuppliers = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const response = await supplierApi.getList();
       setRawSuppliers(response.list);
     } catch (error) {
       logger.error('Failed to fetch suppliers:', String(error));
+      setLoadError('画师列表加载失败，请检查网络或稍后重试');
     } finally {
       setLoading(false);
     }
@@ -600,6 +606,17 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
     </div>
   );
 
+  const errorState = (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <SearchXIcon className="w-14 h-14 text-destructive/40 mb-4" />
+      <p className="text-sm font-medium text-foreground mb-1">加载失败</p>
+      <p className="text-xs text-muted-foreground mb-4">{loadError}</p>
+      <Button variant="outline" size="sm" onClick={fetchSuppliers}>
+        重试
+      </Button>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <HeaderSection viewMode={viewMode} />
@@ -644,6 +661,8 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
+            ) : loadError ? (
+              errorState
             ) : displaySuppliers.length === 0 ? (
               emptyState
             ) : (
@@ -699,6 +718,8 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
+            ) : loadError ? (
+              errorState
             ) : displaySuppliers.length === 0 ? (
               emptyState
             ) : (

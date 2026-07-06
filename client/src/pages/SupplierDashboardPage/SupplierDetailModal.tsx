@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   ExternalLinkIcon, MessageCircleIcon, StarIcon,
   TagIcon, BanknoteIcon, FileTextIcon, UploadIcon, Trash2Icon,
@@ -396,8 +396,23 @@ export default function SupplierDetailModal({
     return `${Math.floor(m / 60)} 小时前`;
   }
 
+  // 当前表单值的签名（用于脏检查 / 判断"是否真的改过"）。字段集与草稿一致。
+  const formSignature = useMemo(
+    () => JSON.stringify({
+      artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
+      cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
+      styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages,
+    }),
+    [artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
+      cooperationTypeVal, cooperationCountVal, ratingVal, statusVal, styleTags,
+      contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages],
+  );
+  // 进入编辑态那一刻的基线签名；与当前签名不同即为"脏"
+  const editBaselineRef = useRef<string | null>(null);
+  const isDirty = editBaselineRef.current !== null && formSignature !== editBaselineRef.current;
+
   const handleWantsToClose = () => {
-    if (isEditing) { setShowConfirm(true); return; }
+    if (isEditing && isDirty) { setShowConfirm(true); return; }
     onClose();
   };
 
@@ -446,6 +461,13 @@ export default function SupplierDetailModal({
     resetForm();
     setIsEditing(false);
   }, [supplier]);
+
+  // 进入编辑态时记录基线签名（此刻表单值 = 供应商原值）；退出编辑态清空
+  useEffect(() => {
+    editBaselineRef.current = isEditing ? formSignature : null;
+    // 只在 isEditing 翻转时捕获，故意不把 formSignature 放进依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
 
   useEffect(() => {
     if (!isEditing || !open) return;
@@ -790,12 +812,12 @@ export default function SupplierDetailModal({
         onPointerDownOutside={(e) => {
           // 灯箱开着时，点击灯箱不应关闭详情弹窗
           if (lightboxIndex !== null || noteLightboxIndex !== null) { e.preventDefault(); return; }
-          if (isEditing) { e.preventDefault(); setShowConfirm(true); }
+          if (isEditing && isDirty) { e.preventDefault(); setShowConfirm(true); }
         }}
         onEscapeKeyDown={(e) => {
           // 灯箱开着时，Esc 只交给灯箱自身关闭，不关详情弹窗
           if (lightboxIndex !== null || noteLightboxIndex !== null) { e.preventDefault(); return; }
-          if (isEditing) { e.preventDefault(); setShowConfirm(true); }
+          if (isEditing && isDirty) { e.preventDefault(); setShowConfirm(true); }
         }}
       >
         {/* Header */}
