@@ -13,6 +13,7 @@ import { suppliers, auditLog } from '../../database/schema';
 import { ISupplier, ICreateSupplierDto, IUpdateSupplierDto, ISupplierFilter, ISupplierListResponse, IBatchCreateResponse } from './supplier.types';
 import { AuditService } from '../audit/audit.service';
 import { normalizeSupplierType } from './supplier-type.util';
+import { persistExternalImages } from '../../common/http/image-download';
 
 @Injectable()
 export class SupplierService {
@@ -84,6 +85,10 @@ export class SupplierService {
     // 在同秒并发 / 批量导入场景下取错记录
     const id = crypto.randomUUID();
 
+    // 作品图里若有外链（小红书 CDN，来自「识别链接」预填），保存时才落地到本地 uploads，
+    // 避免抓取即下载产生孤儿图。已是 /uploads 的原样保留。
+    const artworkUrls = await persistExternalImages(data.artworkUrls || [], 'artwork');
+
     await this.db.insert(suppliers).values({
       id,
       accountName: data.accountName,
@@ -110,6 +115,7 @@ export class SupplierService {
         : null,
       importSource: options.importSource || 'manual',
       importBatchId: options.importBatchId || null,
+      artworkUrls,
       noteImages: data.noteImages || [],
     });
     const created = await this.findById(id);
@@ -174,7 +180,7 @@ export class SupplierService {
     if (data.supplierType !== undefined) updateData.supplierType = data.supplierType
       ? normalizeSupplierType(data.supplierType, data.accountName || '')
       : null;
-    if (data.artworkUrls !== undefined) updateData.artworkUrls = data.artworkUrls;
+    if (data.artworkUrls !== undefined) updateData.artworkUrls = await persistExternalImages(data.artworkUrls, 'artwork');
     if (data.noteImages !== undefined) updateData.noteImages = data.noteImages;
 
     await this.db.update(suppliers).set(updateData).where(eq(suppliers.id, id));

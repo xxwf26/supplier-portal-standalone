@@ -4,7 +4,7 @@ import {
   TagIcon, BanknoteIcon, FileTextIcon, UploadIcon, Trash2Icon,
   PencilIcon, PlusIcon, LinkIcon, ImageIcon, XIcon, CheckIcon,
   PhoneIcon, ShieldIcon, ArchiveRestoreIcon,
-  ChevronLeftIcon, ChevronRightIcon, Building2Icon,
+  ChevronLeftIcon, ChevronRightIcon, Building2Icon, SparklesIcon,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { ISupplier, IPriceItem, IContactItem } from '@/api/types';
 import { supplierApi } from '@/api/supplier';
+import { scrapeApi } from '@/api/scrape';
 import { axiosForBackend } from '@/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,8 @@ import { useAuth } from '@/lib/auth';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import { configApi } from '@/api/config';
 import { normalizeSupplierType, SUPPLIER_TYPE_STYLE } from '@/lib/supplierUtils';
+import { normalizeForSearch } from '@/lib/chineseNormalize';
+import { artworkSrc } from '@/lib/imageSrc';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
 
 const typeConfig = SUPPLIER_TYPE_STYLE;
@@ -287,6 +290,10 @@ export default function SupplierDetailModal({
   const [newCoopInput, setNewCoopInput] = useState('');
   const [uploading, setUploading] = useState(false);
 
+  // 小红书链接 AI 自动填充
+  const [xhsUrl, setXhsUrl] = useState('');
+  const [scraping, setScraping] = useState(false);
+
   // 备注快捷模板
   const PRESET_NOTES = ['试稿未通过', '绘制沟通情况', '预警', '档期满', '价格偏高', '质量不稳定'];
   const [customNotes, setCustomNotes] = useState<string[]>(() => {
@@ -517,6 +524,65 @@ export default function SupplierDetailModal({
 
   const removeManualLink = (index: number) => {
     setManualLinkEntries((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // 粘贴小红书链接 → 后端抓取 + AI 总结 → 预填（编辑态，仅预填人工确认后保存）
+  const handleScrape = async () => {
+    const url = xhsUrl.trim();
+    if (!url) { toast.error('请先粘贴小红书主页链接'); return; }
+    setScraping(true);
+    try {
+      const res = await scrapeApi.fromXiaohongshu(url);
+      if (!res.ok) {
+        toast.error(res.reason || '抓取失败，请手动填写');
+        if (res.images?.length) setArtworkUrls((prev) => [...prev, ...res.images!.filter((u) => !prev.includes(u))]);
+        return;
+      }
+
+      // 账号名：仅在为空时填
+      if (res.accountName && !nameVal.trim()) setNameVal(res.accountName);
+
+      // 小红书链接进手动链接（去重）。用后端解析出的纯链接
+      const linkUrl = res.resolvedUrl || url;
+      setManualLinkEntries((prev) =>
+        prev.some((e) => e.url === linkUrl) ? prev : [...prev, { platform: 'xiaohongshu', url: linkUrl }],
+      );
+
+      // 作品图（去重追加）
+      if (res.images?.length) {
+        setArtworkUrls((prev) => [...prev, ...res.images!.filter((u) => !prev.includes(u))]);
+      }
+
+      // AI 摘要追加进备注，绝不覆盖
+      if (res.summary) {
+        const block = `【AI摘要】${res.summary}`;
+        setContactInfoText((prev) => (prev.trim() ? `${prev}\n${block}` : block));
+      }
+
+      // 风格候选映射白名单
+      const matched: string[] = [];
+      const unmatched: string[] = [];
+      (res.styleGuesses || []).forEach((g) => {
+        const ng = normalizeForSearch(g);
+        // 仅归一化（繁简/大小写）后「精确相等」才算命中白名单，避免 substring 误配。
+        const hit = stylePresets.find((p: string) => normalizeForSearch(p) === ng);
+        if (hit) { if (!styleTags.includes(hit)) matched.push(hit); }
+        else unmatched.push(g);
+      });
+      if (matched.length) setStyleTags((prev) => [...prev, ...matched.filter((m) => !prev.includes(m))]);
+
+      let msg = 'AI 已填充：账号名/链接/作品图/摘要';
+      if (matched.length) msg += `，风格标签「${matched.join('、')}」`;
+      toast.success(msg);
+      if (unmatched.length) {
+        toast.message(`AI 还建议了风格：${unmatched.join('、')}（不在配置中，可手动添加）`);
+      }
+    } catch (err: any) {
+      logger.error('Scrape failed:', String(err));
+      toast.error('抓取请求失败，请稍后重试或手动填写');
+    } finally {
+      setScraping(false);
+    }
   };
 
   const addPriceItem = () => {
@@ -915,7 +981,7 @@ export default function SupplierDetailModal({
                         {artworkUrls.map((url, index) => (
                           <div key={index} className="relative aspect-[4/3] rounded-lg overflow-hidden group border border-border">
                             <img
-                              src={url}
+                              src={artworkSrc(url)}
                               alt={`作品 ${index + 1}`}
                               className="w-full h-full object-cover cursor-zoom-in"
                               onClick={() => setLightboxIndex(index)}
@@ -957,7 +1023,7 @@ export default function SupplierDetailModal({
                           onClick={() => setLightboxIndex(index)}
                         >
                           <img
-                            src={url}
+                            src={artworkSrc(url)}
                             alt={`作品 ${index + 1}`}
                             className="h-full w-auto max-w-[360px] object-cover group-hover:scale-[1.02] transition-transform duration-200"
                             onError={(e) => {
@@ -1320,6 +1386,31 @@ export default function SupplierDetailModal({
                 <div className={moduleBody}>
                   {isEditing ? (
                     <div className="space-y-1.5">
+                      {/* 小红书链接 AI 自动填充 */}
+                      <div className="rounded-md border border-primary/30 bg-primary/5 p-2 space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            placeholder="粘贴小红书笔记链接或 App 分享的整段文字"
+                            value={xhsUrl}
+                            onChange={(e) => setXhsUrl(e.target.value)}
+                            className="flex-1 text-xs h-7"
+                            disabled={scraping}
+                          />
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={handleScrape}
+                            disabled={scraping || !xhsUrl.trim()}
+                            className="h-7 px-2 text-[10px] gap-1 shrink-0"
+                          >
+                            <SparklesIcon className="w-3 h-3" />
+                            {scraping ? '抓取中…' : 'AI 填充'}
+                          </Button>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground">
+                          粘小红书笔记链接（非主页），AI 读图文归纳画风/题材/采购建议，预填账号名·链接·作品图·备注，请人工确认后保存。
+                        </p>
+                      </div>
                       {Object.entries(socialLinksView).filter(([, v]) => v).map(([platform, url]) => (
                         <div key={platform} className="flex items-center gap-1.5 text-xs">
                           <span className="w-12 text-muted-foreground shrink-0 text-[10px]">
@@ -1626,7 +1717,7 @@ export default function SupplierDetailModal({
     {/* 作品灯箱 */}
     {lightboxIndex !== null && artworkUrls.length > 0 && (
       <LightboxOverlay
-        urls={artworkUrls}
+        urls={artworkUrls.map(artworkSrc)}
         startIndex={lightboxIndex}
         onClose={() => setLightboxIndex(null)}
       />

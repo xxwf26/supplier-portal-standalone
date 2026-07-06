@@ -3,3 +3,13 @@ dist/
 .env
 *.log
 .DS_Store
+
+# 用户上传 + 抓取下载的图片（运行时数据，勿提交，含小红书孤儿图）
+uploads/
+
+# 数据库快照/备份（可能含业务数据，勿提交）
+backups/
+
+# 文档截图与采集中间产物
+docs/screenshots/
+docs/_capture/

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { UserPlusIcon, PlusIcon, Trash2Icon, ArchiveRestoreIcon, UploadIcon, ImageIcon } from 'lucide-react';
+import { UserPlusIcon, PlusIcon, Trash2Icon, ArchiveRestoreIcon, UploadIcon, ImageIcon, SparklesIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { supplierApi } from '@/api/supplier';
+import { scrapeApi } from '@/api/scrape';
+import { artworkSrc } from '@/lib/imageSrc';
 import { IPriceItem, IContactItem } from '@/api/types';
 import { axiosForBackend } from '@/api';
 import { cn } from '@/lib/utils';
@@ -30,6 +32,7 @@ import { useFilterOptions } from '@/hooks/useFilterOptions';
 import { configApi } from '@/api/config';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
 import { findSimilarNames } from '@/lib/supplierUtils';
+import { normalizeForSearch } from '@/lib/chineseNormalize';
 
 const PRICE_UNIT_OPTIONS = [
   { value: '元/张', label: '元/张' },
@@ -133,6 +136,10 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
   const [contactItemEntries, setContactItemEntries] = useState<ContactItemEntry[]>([]);
 
+  // 小红书链接 AI 自动填充
+  const [xhsUrl, setXhsUrl] = useState('');
+  const [scraping, setScraping] = useState(false);
+
   const isDirty = accountName.trim() !== '' || supplierType !== '' || cooperationTypes.length > 0 ||
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
     priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0 ||
@@ -219,6 +226,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     setContactItemEntries([]);
     setArtworkUrls([]);
     setNoteImages([]);
+    setXhsUrl('');
     setDraftSavedAt(null);
   };
 
@@ -295,6 +303,68 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
 
   const removeLink = (index: number) => {
     setLinkEntries((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // 粘贴小红书链接 → 后端抓取 + AI 总结 → 预填表单（仅预填，人工确认后再保存）
+  const handleScrape = async () => {
+    const url = xhsUrl.trim();
+    if (!url) { toast.error('请先粘贴小红书主页链接'); return; }
+    setScraping(true);
+    try {
+      const res = await scrapeApi.fromXiaohongshu(url);
+      if (!res.ok) {
+        toast.error(res.reason || '抓取失败，请手动填写');
+        // 即便失败，若抓到了图也给出来供参考
+        if (res.images?.length) setArtworkUrls((prev) => [...prev, ...res.images!.filter((u) => !prev.includes(u))]);
+        return;
+      }
+
+      // 1) 账号名：仅在当前为空时填，避免覆盖用户已输入
+      if (res.accountName && !accountName.trim()) setAccountName(res.accountName);
+
+      // 2) 小红书链接：加进平台链接（去重）。用后端解析出的纯链接，而非用户粘的整段文本
+      const linkUrl = res.resolvedUrl || url;
+      setLinkEntries((prev) =>
+        prev.some((e) => e.url === linkUrl) ? prev : [...prev, { platform: 'xiaohongshu', url: linkUrl }],
+      );
+
+      // 3) 作品图（去重追加，人工可删）
+      if (res.images?.length) {
+        setArtworkUrls((prev) => [...prev, ...res.images!.filter((u) => !prev.includes(u))]);
+      }
+
+      // 4) AI 摘要：追加进备注，带前缀，绝不覆盖已输入内容
+      if (res.summary) {
+        const block = `【AI摘要】${res.summary}`;
+        setContactInfo((prev) => (prev.trim() ? `${prev}\n${block}` : block));
+      }
+
+      // 5) 风格候选映射白名单：命中的自动加进标签；未命中的只提示、不污染白名单
+      const matched: string[] = [];
+      const unmatched: string[] = [];
+      (res.styleGuesses || []).forEach((g) => {
+        const ng = normalizeForSearch(g);
+        // 仅归一化（繁简/大小写）后「精确相等」才算命中白名单。
+        // 不用 substring 双向包含——那会把 AI 的「古」误配「古风」、「复古风」误配「古风」，
+        // 破坏「配置=白名单」原则。未命中的进 unmatched，只提示用户手动加。
+        const hit = stylePresets.find((p) => normalizeForSearch(p) === ng);
+        if (hit) { if (!styleTags.includes(hit)) matched.push(hit); }
+        else unmatched.push(g);
+      });
+      if (matched.length) setStyleTags((prev) => [...prev, ...matched.filter((m) => !prev.includes(m))]);
+
+      let msg = 'AI 已填充：账号名/链接/作品图/摘要';
+      if (matched.length) msg += `，风格标签「${matched.join('、')}」`;
+      toast.success(msg);
+      if (unmatched.length) {
+        toast.message(`AI 还建议了风格：${unmatched.join('、')}（不在配置中，可手动添加）`);
+      }
+    } catch (err: any) {
+      logger.error('Scrape failed:', String(err));
+      toast.error('抓取请求失败，请稍后重试或手动填写');
+    } finally {
+      setScraping(false);
+    }
   };
 
   const addPriceItem = () => {
@@ -679,7 +749,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                 <div className="grid grid-cols-3 gap-2 mb-2">
                   {artworkUrls.map((url, idx) => (
                     <div key={idx} className="relative aspect-[4/3] rounded-lg overflow-hidden group border border-border">
-                      <img src={url} alt={`作品 ${idx + 1}`} className="w-full h-full object-cover" />
+                      <img src={artworkSrc(url)} alt={`作品 ${idx + 1}`} className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => setArtworkUrls(prev => prev.filter((_, i) => i !== idx))}
@@ -705,6 +775,36 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                   </>
                 )}
               </div>
+            </div>
+
+            {/* 小红书链接 AI 自动填充 */}
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <label className="text-xs font-medium text-primary mb-2 flex items-center gap-1">
+                <SparklesIcon className="w-3.5 h-3.5" />
+                小红书链接 · AI 自动填充
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="粘贴小红书笔记链接，或 App 分享的整段文字"
+                  value={xhsUrl}
+                  onChange={(e) => setXhsUrl(e.target.value)}
+                  className="flex-1 text-sm"
+                  disabled={scraping}
+                />
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleScrape}
+                  disabled={scraping || !xhsUrl.trim()}
+                  className="gap-1 shrink-0"
+                >
+                  <SparklesIcon className="w-3.5 h-3.5" />
+                  {scraping ? '抓取中…' : '抓取填充'}
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                粘小红书<strong>笔记</strong>链接（非主页），AI 会读取图文归纳画风/题材/采购建议，预填到下方，请人工确认后再保存。
+              </p>
             </div>
 
             <div>
