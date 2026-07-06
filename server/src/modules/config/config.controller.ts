@@ -9,11 +9,13 @@ export class ConfigController {
   constructor(private readonly configService: ConfigService) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   async getAll() {
     return this.configService.getAll();
   }
 
   @Get(':category')
+  @UseGuards(JwtAuthGuard)
   async getByCategory(@Param('category') category: string) {
     return this.configService.getByCategory(category);
   }

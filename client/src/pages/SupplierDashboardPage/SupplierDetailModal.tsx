@@ -643,21 +643,23 @@ export default function SupplierDetailModal({
       toast.error('画师名称不能为空');
       return;
     }
+
+    // 链接格式校验：必须在进入 try 前用 for...of 做，才能真正中止保存。
+    // （原先写在 forEach 回调里 return 只跳出迭代、不中止 handleSave，非法链接照样提交）
+    const manualLinksRecord: Record<string, string> = {};
+    for (const entry of manualLinkEntries) {
+      if (entry.platform && entry.url) {
+        const url = entry.url.trim();
+        if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+          toast.error(`链接格式不正确：${url}（需以 http:// 或 https:// 开头）`);
+          return;
+        }
+        manualLinksRecord[entry.platform] = url;
+      }
+    }
+
     setSaving(true);
     try {
-      const manualLinksRecord: Record<string, string> = {};
-      manualLinkEntries.forEach((entry) => {
-        if (entry.platform && entry.url) {
-          const url = entry.url.trim();
-          if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
-            toast.error(`链接格式不正确：${url}（需以 http:// 或 https:// 开头）`);
-            setSaving(false);
-            return;
-          }
-          manualLinksRecord[entry.platform] = url;
-        }
-      });
-
       const priceItems: IPriceItem[] = priceItemEntries
         .filter((e) => e.cooperationType && e.unitPrice)
         .map((e) => ({

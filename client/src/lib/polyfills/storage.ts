@@ -1,5 +1,5 @@
 // Polyfill for @lark-apaas/client-toolkit/dataloom and tools/storage
-import axios from 'axios';
+import { axiosForBackend } from '@/api';
 
 export async function getDataloom() {
   return {
@@ -8,7 +8,8 @@ export async function getDataloom() {
         uploadFile: async (file: File) => {
           const formData = new FormData();
           formData.append('file', file);
-          const res = await axios.post('/api/upload', formData);
+          // 用带 JWT 的实例（/api/upload 现要求登录）；原生 axios 不带 token 会 401
+          const res = await axiosForBackend.post('/api/upload', formData);
           const url = res.data.url || res.data.download_url || '';
           const fileName = res.data.fileName || file.name;
           return {

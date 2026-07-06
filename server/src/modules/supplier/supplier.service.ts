@@ -8,6 +8,7 @@ function parseJson<T>(value: unknown, fallback: T): T {
   return value as T;
 }
 import { eq, and, or, like, inArray, SQL, sql } from 'drizzle-orm';
+import type { AnyMySqlColumn } from 'drizzle-orm/mysql-core';
 import { DRIZZLE_DATABASE, type Database } from '../../database/database.module';
 import { suppliers, auditLog } from '../../database/schema';
 import { ISupplier, ICreateSupplierDto, IUpdateSupplierDto, ISupplierFilter, ISupplierListResponse, IBatchCreateResponse } from './supplier.types';
@@ -31,10 +32,11 @@ export class SupplierService {
       conditions.push(inArray(suppliers.supplierType, filter.supplierType));
     }
     if (filter?.cooperationCategory?.length) {
-      conditions.push(inArray(suppliers.cooperationCategory, filter.cooperationCategory));
+      // cooperationCategory / subCategory 存的是「、/，」拼接的多值串，不能用 inArray 整列等值匹配
+      conditions.push(this.multiValueMatch(suppliers.cooperationCategory, filter.cooperationCategory));
     }
     if (filter?.subCategory?.length) {
-      conditions.push(inArray(suppliers.subCategory, filter.subCategory));
+      conditions.push(this.multiValueMatch(suppliers.subCategory, filter.subCategory));
     }
     if (filter?.riskStatus?.length) {
       conditions.push(inArray(suppliers.riskStatus, filter.riskStatus));
@@ -64,6 +66,19 @@ export class SupplierService {
       list: list.map(this.mapToISupplier),
       total: list.length,
     };
+  }
+
+  /**
+   * 多值列（「、/，/ /」拼接串，如擅长风格 sub_category）的成员匹配。
+   * 做法：把列里所有分隔符归一为「、」、两端各补一个「、」，再 LIKE '%、值、%'。
+   * 这样能精确命中任意位置的成员，且不会子串误判（如筛「古」不会命中「古风」）。
+   * 多个候选值之间取 OR（同一维度内是"命中任一即可"）。
+   * 对单值列该逻辑自动退化为精确匹配，故用在 cooperationCategory 上同样安全。
+   */
+  private multiValueMatch(column: AnyMySqlColumn, values: string[]): SQL {
+    const padded = sql`CONCAT('、', REPLACE(REPLACE(REPLACE(${column}, '/', '、'), '，', '、'), ' ', ''), '、')`;
+    const ors = values.map((v) => sql`${padded} LIKE ${'%、' + v + '、%'}`);
+    return (ors.length === 1 ? ors[0] : or(...ors)) as SQL;
   }
 
   async findById(id: string): Promise<ISupplier | null> {
