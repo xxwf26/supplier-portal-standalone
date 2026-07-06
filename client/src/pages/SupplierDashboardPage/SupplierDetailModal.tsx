@@ -40,6 +40,11 @@ import { configApi } from '@/api/config';
 import { normalizeSupplierType, SUPPLIER_TYPE_STYLE } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
 import { artworkSrc } from '@/lib/imageSrc';
+import {
+  PRICE_UNIT_OPTIONS, CONTACT_TYPE_OPTIONS, PLATFORM_OPTIONS,
+  PLATFORM_LABELS, CONTACT_TYPE_LABELS, MAX_PRICE_ITEMS, MAX_CONTACT_ITEMS,
+  type PriceItemEntry, type ContactItemEntry,
+} from './supplierFormShared';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
 
 const typeConfig = SUPPLIER_TYPE_STYLE;
@@ -51,63 +56,8 @@ const statusConfig = {
   unset:      { label: '未填写',   color: 'bg-orange-50 text-orange-500 border-orange-200', dotColor: 'bg-orange-300' },
 };
 
-const PRICE_UNIT_OPTIONS = [
-  { value: '元/张', label: '元/张' },
-  { value: '元/个', label: '元/个' },
-  { value: '元/秒', label: '元/秒' },
-  { value: '元/套', label: '元/套' },
-  { value: '元/条', label: '元/条' },
-  { value: '元/天', label: '元/天' },
-];
-
-const CONTACT_TYPE_OPTIONS = [
-  { value: 'wechat', label: '微信' },
-  { value: 'qq', label: 'QQ' },
-  { value: 'phone', label: '电话' },
-];
-
-const PLATFORM_OPTIONS = [
-  { value: 'xiaohongshu', label: '小红书' },
-  { value: 'weibo', label: '微博' },
-  { value: 'bilibili', label: 'B站' },
-  { value: 'pixiv', label: 'P站' },
-  { value: 'mihuashi', label: '米画师' },
-  { value: 'x', label: 'X' },
-  { value: 'other', label: '其他' },
-];
-
-const platformLabels: Record<string, string> = {
-  weibo: '微博',
-  pixiv: 'P站',
-  xiaohongshu: '小红书',
-  website: '官网',
-  bilibili: 'B站',
-  mihuashi: '米画师',
-  x: 'X',
-  other: '其他',
-};
-
-const contactTypeLabels: Record<string, string> = {
-  wechat: '微信',
-  qq: 'QQ',
-  phone: '电话',
-};
-
-interface ManualLinkEntry {
-  platform: string;
-  url: string;
-}
-
-interface PriceItemEntry {
-  cooperationType: string;
-  unitPrice: string;
-  priceUnit: string;
-}
-
-interface ContactItemEntry {
-  type: string;
-  value: string;
-}
+// 已存链接/联系方式的只读展示用共享 label 映射（PLATFORM_LABELS / CONTACT_TYPE_LABELS）
+type ManualLinkEntry = { platform: string; url: string };
 
 interface SupplierDetailModalProps {
   supplier: ISupplier | null;
@@ -116,9 +66,6 @@ interface SupplierDetailModalProps {
   onSave: () => void;
   onDelete?: () => void;
 }
-
-const MAX_PRICE_ITEMS = 5;
-const MAX_CONTACT_ITEMS = 10;
 
 // 容错：JSON 列可能以字符串/双重编码形式回传，统一转数组/对象，避免脏数据崩溃
 function toArr<T>(v: unknown): T[] {
@@ -1379,7 +1326,7 @@ export default function SupplierDetailModal({
                         {contactItemsView.map((item, i) => (
                           <div key={i} className="flex items-center gap-1.5 text-xs">
                             <Badge variant="outline" className="text-[10px] bg-muted/30 shrink-0">
-                              {contactTypeLabels[item.type] || item.type}
+                              {CONTACT_TYPE_LABELS[item.type] || item.type}
                             </Badge>
                             <span className="text-foreground truncate">{item.value}</span>
                           </div>
@@ -1438,7 +1385,7 @@ export default function SupplierDetailModal({
                       {Object.entries(socialLinksView).filter(([, v]) => v).map(([platform, url]) => (
                         <div key={platform} className="flex items-center gap-1.5 text-xs">
                           <span className="w-12 text-muted-foreground shrink-0 text-[10px]">
-                            {platformLabels[platform] || platform}
+                            {PLATFORM_LABELS[platform] || platform}
                           </span>
                           <Input value={url} readOnly className="flex-1 text-[10px] h-6 bg-muted/50 px-1.5" />
                           <span className="text-[9px] text-muted-foreground shrink-0">(导入)</span>
@@ -1482,7 +1429,7 @@ export default function SupplierDetailModal({
                             className="h-6 px-2 gap-1 text-[10px]"
                             onClick={() => window.open(url, '_blank')}
                           >
-                            {platformLabels[platform] || platform}
+                            {PLATFORM_LABELS[platform] || platform}
                             <ExternalLinkIcon className="w-2.5 h-2.5" />
                           </Button>
                         ))}

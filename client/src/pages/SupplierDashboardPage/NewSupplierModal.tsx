@@ -24,6 +24,11 @@ import { scrapeApi } from '@/api/scrape';
 import { artworkSrc } from '@/lib/imageSrc';
 import { IPriceItem, IContactItem } from '@/api/types';
 import { axiosForBackend } from '@/api';
+import {
+  PRICE_UNIT_OPTIONS, CONTACT_TYPE_OPTIONS, PLATFORM_OPTIONS,
+  MAX_PRICE_ITEMS, MAX_CONTACT_ITEMS,
+  type LinkEntry, type PriceItemEntry, type ContactItemEntry,
+} from './supplierFormShared';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/polyfills/logger';
 import { getDataloom, getDefaultBucketId } from '@/lib/polyfills/storage';
@@ -34,53 +39,12 @@ import { LimitedTextarea } from '@/components/ui/limited-textarea';
 import { findSimilarNames } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
 
-const PRICE_UNIT_OPTIONS = [
-  { value: '元/张', label: '元/张' },
-  { value: '元/个', label: '元/个' },
-  { value: '元/秒', label: '元/秒' },
-  { value: '元/套', label: '元/套' },
-  { value: '元/条', label: '元/条' },
-  { value: '元/天', label: '元/天' },
-];
-
-const CONTACT_TYPE_OPTIONS = [
-  { value: 'wechat', label: '微信' },
-  { value: 'qq', label: 'QQ' },
-  { value: 'phone', label: '电话' },
-];
-
-const PLATFORM_OPTIONS = [
-  { value: 'xiaohongshu', label: '小红书' },
-  { value: 'weibo', label: '微博' },
-  { value: 'mihuashi', label: '米画师' },
-  { value: 'x', label: 'X' },
-];
-
-interface LinkEntry {
-  platform: string;
-  url: string;
-}
-
-interface PriceItemEntry {
-  cooperationType: string;
-  unitPrice: string;
-  priceUnit: string;
-}
-
-interface ContactItemEntry {
-  type: string;
-  value: string;
-}
-
 interface NewSupplierModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
   suppliers?: Array<{ id: string; accountName: string }>;
 }
-
-const MAX_PRICE_ITEMS = 5;
-const MAX_CONTACT_ITEMS = 10;
 
 const DRAFT_KEY = '__draft_new_supplier';
 
