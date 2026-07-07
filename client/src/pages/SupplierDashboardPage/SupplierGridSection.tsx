@@ -138,7 +138,7 @@ const SupplierCard = React.memo(function SupplierCard({
 
   const displayPrice = supplier.priceItems && supplier.priceItems.length > 0
     ? supplier.priceItems.map((p) => `${p.cooperationType} ${p.unitPrice}${p.priceUnit}`).join(' | ')
-    : '';
+    : (supplier.priceText || '');
 
   const contactTypeLabel: Record<string, string> = { wechat: '微信', qq: 'QQ', phone: '电话' };
 
