@@ -11,6 +11,7 @@ export interface IFilterState {
   styles: string[];
   priceRange: [number, number];
   priceUnset: boolean;
+  ratings: string[];
   status: string[];
   projects: string[];
   keyword: string;
@@ -120,6 +121,7 @@ export default function FilterPanelSection({
     styles: [],
     priceRange: [0, 10000],
     priceUnset: false,
+    ratings: [],
     status: [],
     projects: [],
     keyword: '',
@@ -164,11 +166,12 @@ export default function FilterPanelSection({
   };
 
   const clearFilters = () => {
-    setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [0, 10000], priceUnset: false, status: [], projects: [], keyword: '' });
+    setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [0, 10000], priceUnset: false, ratings: [], status: [], projects: [], keyword: '' });
   };
 
   const hasActiveFilters = filters.types.length > 0 || filters.cooperationTypes.length > 0 ||
     filters.styles.length > 0 || filters.status.length > 0 || filters.projects.length > 0 ||
+    filters.ratings.length > 0 ||
     filters.keyword !== '' || filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000 || filters.priceUnset;
 
   const activeFilterCount =
@@ -177,6 +180,7 @@ export default function FilterPanelSection({
     filters.styles.length +
     filters.status.length +
     filters.projects.length +
+    filters.ratings.length +
     (filters.keyword !== '' ? 1 : 0) +
     (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000 || filters.priceUnset ? 1 : 0);
 
@@ -273,6 +277,27 @@ export default function FilterPanelSection({
               label="未填写报价"
               muted
             />
+          </div>
+        </Section>
+
+        {/* 评分 */}
+        <Section title="评分">
+          <div className="flex flex-wrap gap-1.5">
+            {['5', '4', '3', '2', '1'].map((r) => (
+              <Pill
+                key={r}
+                active={filters.ratings.includes(r)}
+                onClick={() => toggleArrayFilter('ratings', r)}
+              >
+                {r}★
+              </Pill>
+            ))}
+            <Pill
+              active={filters.ratings.includes('__unset__')}
+              onClick={() => toggleArrayFilter('ratings', '__unset__')}
+            >
+              未评分
+            </Pill>
           </div>
         </Section>
 

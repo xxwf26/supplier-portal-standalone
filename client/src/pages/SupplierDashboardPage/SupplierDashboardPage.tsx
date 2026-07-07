@@ -205,6 +205,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
       currentFilters.styles.length +
       currentFilters.status.length +
       currentFilters.projects.length +
+      currentFilters.ratings.length +
       (currentFilters.priceRange[0] !== 0 || currentFilters.priceRange[1] !== 10000 || currentFilters.priceUnset ? 1 : 0)
     );
   }, [currentFilters]);
@@ -260,6 +261,16 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
         return s.priceRange[0] >= currentFilters.priceRange[0] &&
                s.priceRange[1] <= currentFilters.priceRange[1];
       });
+    }
+
+    // 评分过滤：勾选具体星级（精确命中）或「未评分」
+    if (currentFilters.ratings.length > 0) {
+      const hasUnset = currentFilters.ratings.includes('__unset__');
+      const realRatings = currentFilters.ratings.filter(r => r !== '__unset__');
+      result = result.filter((s) =>
+        (hasUnset && (s.rating === null || s.rating === undefined)) ||
+        (realRatings.length > 0 && s.rating != null && realRatings.includes(String(s.rating)))
+      );
     }
 
     return result;
