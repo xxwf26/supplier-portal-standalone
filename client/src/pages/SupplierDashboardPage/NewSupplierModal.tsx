@@ -98,7 +98,6 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
   const [contractType, setContractType] = useState('');
   const [contractNo, setContractNo] = useState('');
   const [contractDeadline, setContractDeadline] = useState('');
-  const [taxStatus, setTaxStatus] = useState('');
   const [styleTags, setStyleTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [linkEntries, setLinkEntries] = useState<LinkEntry[]>([]);
@@ -114,7 +113,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
     priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0 ||
     noteImages.length > 0 || priceRange !== '' ||
-    contractEntity !== '' || contractType !== '' || contractNo !== '' || contractDeadline !== '' || taxStatus !== '';
+    contractEntity !== '' || contractType !== '' || contractNo !== '' || contractDeadline !== '';
 
   // 输入名称时实时检测相似画师（纯前端比对，无需 API，防抖 400ms）
   useEffect(() => {
@@ -138,7 +137,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         accountName, supplierType, cooperationTypes,
         contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
         contactItemEntries, noteImages, priceRange,
-        contractEntity, contractType, contractNo, contractDeadline, taxStatus,
+        contractEntity, contractType, contractNo, contractDeadline,
         savedAt: new Date().toISOString(),
       };
       try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
@@ -146,7 +145,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     return () => clearTimeout(timer);
   }, [open, isDirty, accountName, supplierType, cooperationTypes,
     contactInfo, entityType, styleTags, linkEntries, priceItemEntries, contactItemEntries,
-    contractEntity, contractType, contractNo, contractDeadline, taxStatus, priceRange]);
+    contractEntity, contractType, contractNo, contractDeadline, priceRange]);
 
   // 打开时检测草稿（修复 stale closure：移除 !isDirty 条件，有草稿就显示 banner）
   useEffect(() => {
@@ -181,7 +180,6 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
       setContractType(d.contractType ?? '');
       setContractNo(d.contractNo ?? '');
       setContractDeadline(d.contractDeadline ?? '');
-      setTaxStatus(d.taxStatus ?? '');
     } catch {}
     setDraftSavedAt(null);
   }, []);
@@ -212,7 +210,6 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     setContractType('');
     setContractNo('');
     setContractDeadline('');
-    setTaxStatus('');
     setDraftSavedAt(null);
   };
 
@@ -456,7 +453,6 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         contractType: contractType.trim() || undefined,
         contractNo: contractNo.trim() || undefined,
         contractDeadline: contractDeadline || undefined,
-        taxStatus: taxStatus.trim() || undefined,
         subCategory: styleTags.join('、') || undefined,
         socialLinks: Object.keys(manualLinks).length > 0 ? manualLinks : undefined,
         priceItems,
@@ -583,33 +579,6 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
-
-            {/* 合同 / 税务 */}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-2 block">合同 / 税务</label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] text-muted-foreground mb-1 block">合同主体</label>
-                  <Input value={contractEntity} onChange={(e) => setContractEntity(e.target.value)} placeholder="签约主体" />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground mb-1 block">合同类型</label>
-                  <Input value={contractType} onChange={(e) => setContractType(e.target.value)} placeholder="如 框架/单次" />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground mb-1 block">合同编号</label>
-                  <Input value={contractNo} onChange={(e) => setContractNo(e.target.value)} placeholder="编号" />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground mb-1 block">合同到期日</label>
-                  <Input type="date" value={contractDeadline} onChange={(e) => setContractDeadline(e.target.value)} />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-[11px] text-muted-foreground mb-1 block">税务状态</label>
-                  <Input value={taxStatus} onChange={(e) => setTaxStatus(e.target.value)} placeholder="如 已开票/待开票/免税" />
-                </div>
               </div>
             </div>
 
@@ -928,6 +897,29 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                   />
                   <UploadIcon className="w-4 h-4 text-muted-foreground" />
                   <p className="text-xs text-muted-foreground">点击上传或粘贴图片</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 合同（放在最后） */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">合同</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-muted-foreground mb-1 block">合同主体</label>
+                  <Input value={contractEntity} onChange={(e) => setContractEntity(e.target.value)} placeholder="签约主体" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground mb-1 block">合同类型</label>
+                  <Input value={contractType} onChange={(e) => setContractType(e.target.value)} placeholder="如 框架/单次" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground mb-1 block">合同编号</label>
+                  <Input value={contractNo} onChange={(e) => setContractNo(e.target.value)} placeholder="编号" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground mb-1 block">合同到期日</label>
+                  <Input type="date" value={contractDeadline} onChange={(e) => setContractDeadline(e.target.value)} />
                 </div>
               </div>
             </div>
