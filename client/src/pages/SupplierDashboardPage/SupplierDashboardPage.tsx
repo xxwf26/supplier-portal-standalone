@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon, ListChecksIcon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon, ListChecksIcon, FileSpreadsheetIcon, LayoutGridIcon, TableIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
 import FilterPanelSection, { IFilterState, STORAGE_KEY } from './FilterPanelSection';
@@ -25,15 +25,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Checkbox } from '@/components/ui/checkbox';
 import HistoryPanel from './HistoryPanel';
 import ShortlistPanel, { AddToShortlistDialog } from './ShortlistPanel';
+import SupplierTableSection from './SupplierTableSection';
 import DuplicateCheckPanel from './DuplicateCheckPanel';
 import { normalizeSupplierType } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ExportFields, DEFAULT_EXPORT_FIELDS, EXPORT_FIELD_LABELS, exportSuppliersToPdf } from './exportSupplierPdf';
+import { exportSuppliersToExcel } from './exportSupplierExcel';
 
 const EXPORT_FIELDS_STORAGE_KEY = '__export_fields';
 
-type SortKey = 'default' | 'ratingDesc' | 'ratingAsc' | 'countDesc' | 'countAsc' | 'recent';
+export type SortKey = 'default' | 'ratingDesc' | 'ratingAsc' | 'countDesc' | 'countAsc' | 'recent';
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'default', label: '默认排序' },
@@ -196,6 +198,14 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   const handleGridColumns = (cols: number) => {
     setGridColumns(cols);
     localStorage.setItem('__grid_columns', String(cols));
+  };
+
+  const [layoutMode, setLayoutMode] = useState<'card' | 'table'>(() => {
+    return localStorage.getItem('__layout_mode') === 'table' ? 'table' : 'card';
+  });
+  const handleLayoutMode = (m: 'card' | 'table') => {
+    setLayoutMode(m);
+    localStorage.setItem('__layout_mode', m);
   };
 
   const { isAdmin } = useAuth();
@@ -505,6 +515,20 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
     }
   }, [selectedSuppliers, isExporting, hiddenSelectedCount]);
 
+  const handleExportExcel = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    const rows = rawSuppliers.filter((s) => selectedIds.has(s.id));
+    if (rows.length === 0) { toast.error('没有可导出的画师'); return; }
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      exportSuppliersToExcel(rows, `画师导出_${stamp}`);
+      toast.success(`已导出 ${rows.length} 位画师为 Excel`);
+    } catch (err) {
+      logger.error('Excel export failed:', String(err));
+      toast.error('Excel 导出失败，请重试');
+    }
+  }, [selectedIds, rawSuppliers]);
+
   const handleCopyToClipboard = useCallback(async () => {
     if (selectedSuppliers.length === 0) return;
     if (hiddenSelectedCount > 0) {
@@ -612,7 +636,26 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
         </SelectContent>
       </Select>
 
-      {/* 列数切换（仅 PC 模式） */}
+      {/* 视图切换：卡片 / 表格 */}
+      <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5 shrink-0">
+        <button
+          title="卡片视图"
+          onClick={() => handleLayoutMode('card')}
+          className={`h-7 px-2 rounded transition-colors ${layoutMode === 'card' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <LayoutGridIcon className="w-3.5 h-3.5" />
+        </button>
+        <button
+          title="表格视图"
+          onClick={() => handleLayoutMode('table')}
+          className={`h-7 px-2 rounded transition-colors ${layoutMode === 'table' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <TableIcon className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* 列数切换（仅 PC 卡片模式） */}
+      {layoutMode === 'card' && (
       <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5 shrink-0">
         {[0, 1, 2, 3, 4, 5, 6].map(n => (
           <button
@@ -629,6 +672,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
           </button>
         ))}
       </div>
+      )}
     </>
   );
 
@@ -712,6 +756,16 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
               errorState
             ) : displaySuppliers.length === 0 ? (
               emptyState
+            ) : layoutMode === 'table' ? (
+              <SupplierTableSection
+                suppliers={displaySuppliers}
+                onSelect={handleSupplierSelect}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                isAdmin={isAdmin}
+                sortKey={sortKey}
+                onSort={setSortKey}
+              />
             ) : (
               <SupplierGridSection
                 suppliers={displaySuppliers}
@@ -896,6 +950,15 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
               >
                 <DownloadIcon className="w-3.5 h-3.5" />
                 {isExporting ? '导出中…' : '导出 PDF'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={handleExportExcel}
+              >
+                <FileSpreadsheetIcon className="w-3.5 h-3.5" />
+                导出 Excel
               </Button>
               <Button
                 variant="outline"
