@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { SupplierService } from './supplier.service';
 import { ISupplierFilter, IBatchCreateResponse } from './supplier.types';
-import { CreateSupplierDto, UpdateSupplierDto, BatchCreateSupplierDto, BatchDeleteSupplierDto } from './supplier.dto';
+import { CreateSupplierDto, UpdateSupplierDto, BatchCreateSupplierDto, BatchDeleteSupplierDto, BatchUpdateSupplierDto } from './supplier.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -88,6 +88,22 @@ export class SupplierController {
       throw new HttpException('单次最多删除 500 条', HttpStatus.BAD_REQUEST);
     }
     return this.supplierService.batchDelete(data.ids, req.user?.username);
+  }
+
+  @Post('batch-update')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async batchUpdate(@Body() data: BatchUpdateSupplierDto, @Request() req: any) {
+    if (!data.ids || !Array.isArray(data.ids) || data.ids.length === 0) {
+      throw new HttpException('请选择要修改的画师', HttpStatus.BAD_REQUEST);
+    }
+    if (data.ids.length > 500) {
+      throw new HttpException('单次最多修改 500 条', HttpStatus.BAD_REQUEST);
+    }
+    if (!data.patch || Object.keys(data.patch).length === 0) {
+      throw new HttpException('未指定要修改的内容', HttpStatus.BAD_REQUEST);
+    }
+    return this.supplierService.batchUpdate(data.ids, data.patch, req.user?.username);
   }
 
   @Post()

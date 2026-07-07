@@ -55,4 +55,20 @@ export const supplierApi = {
     const res = await axiosForBackend({ url: '/api/suppliers/batch-delete', method: 'POST', data: { ids } });
     return res.data;
   },
+
+  batchUpdate: async (
+    ids: string[],
+    patch: {
+      riskStatus?: string;
+      isInStock?: boolean;
+      supplierType?: string;
+      cooperationCategory?: string;
+      entityType?: string;
+      appendStyles?: string[];
+      appendCooperationTypes?: string[];
+    },
+  ): Promise<{ updated: number; notFound: number; batchId: string }> => {
+    const res = await axiosForBackend({ url: '/api/suppliers/batch-update', method: 'POST', data: { ids, patch } });
+    return res.data;
+  },
 };

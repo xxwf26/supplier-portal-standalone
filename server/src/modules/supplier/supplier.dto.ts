@@ -161,3 +161,25 @@ export class BatchDeleteSupplierDto {
   @IsString({ each: true })
   ids!: string[];
 }
+
+/** 批量编辑：可覆盖类字段 + 追加标签类 */
+export class BatchUpdatePatchDto {
+  @IsOptional() @IsString() riskStatus?: string;
+  @IsOptional() @IsBoolean() isInStock?: boolean;
+  @IsOptional() @IsString() supplierType?: string;
+  @IsOptional() @IsString() cooperationCategory?: string;
+  @IsOptional() @IsString() entityType?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) appendStyles?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) appendCooperationTypes?: string[];
+}
+
+export class BatchUpdateSupplierDto {
+  @IsArray()
+  @IsString({ each: true })
+  ids!: string[];
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => BatchUpdatePatchDto)
+  patch!: BatchUpdatePatchDto;
+}

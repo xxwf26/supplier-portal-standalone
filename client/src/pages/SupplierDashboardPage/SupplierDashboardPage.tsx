@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon, ListChecksIcon, FileSpreadsheetIcon, LayoutGridIcon, TableIcon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon, ListChecksIcon, FileSpreadsheetIcon, LayoutGridIcon, TableIcon, PencilIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
 import FilterPanelSection, { IFilterState, STORAGE_KEY } from './FilterPanelSection';
@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import HistoryPanel from './HistoryPanel';
 import ShortlistPanel, { AddToShortlistDialog } from './ShortlistPanel';
 import SupplierTableSection from './SupplierTableSection';
+import BatchEditDialog from './BatchEditDialog';
 import DuplicateCheckPanel from './DuplicateCheckPanel';
 import { normalizeSupplierType } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
@@ -184,6 +185,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  const [batchEditOpen, setBatchEditOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   // 搜索防抖：输入框即时回显 keyword，实际过滤用 debouncedKeyword，避免每次按键全量重算
   const debouncedKeyword = useDebouncedValue(keyword, 300);
@@ -983,6 +985,15 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
                     加入清单
                   </Button>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => setBatchEditOpen(true)}
+                  >
+                    <PencilIcon className="w-3.5 h-3.5" />
+                    批量编辑
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -1019,6 +1030,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
       <DuplicateCheckPanel open={isDuplicateOpen} onClose={() => setIsDuplicateOpen(false)} onDeleted={fetchSuppliers} suppliers={rawSuppliers} />
       <ShortlistPanel open={isShortlistOpen} onClose={() => setIsShortlistOpen(false)} onOpenSupplier={handleOpenSupplierById} />
       <AddToShortlistDialog open={addToListOpen} onClose={() => setAddToListOpen(false)} supplierIds={Array.from(selectedIds)} />
+      <BatchEditDialog open={batchEditOpen} onClose={() => setBatchEditOpen(false)} supplierIds={Array.from(selectedIds)} onDone={() => { handleClearSelection(); fetchSuppliers(); }} />
 
       {/* 导出字段选择对话框 */}
       <ExportFieldsDialog

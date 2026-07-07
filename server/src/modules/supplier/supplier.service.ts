@@ -299,6 +299,79 @@ export class SupplierService {
     return { deleted: rows.length, notFound: ids.length - rows.length, batchId };
   }
 
+  /**
+   * 批量编辑：改前快照 + 事务内逐条 UPDATE（带共享 batchId 与完整 oldData/newData）。
+   * 复用既有 UPDATE 审计轨道，故「变更记录」可逐条撤回；快照提供整批回退兜底。
+   * patch 支持覆盖类字段与「追加标签」两类。
+   */
+  async batchUpdate(
+    ids: string[],
+    patch: {
+      riskStatus?: string;
+      isInStock?: boolean;
+      supplierType?: string;
+      cooperationCategory?: string;
+      entityType?: string;
+      appendStyles?: string[];
+      appendCooperationTypes?: string[];
+    },
+    operatedBy = 'admin',
+  ): Promise<{ updated: number; notFound: number; batchId: string }> {
+    try {
+      await this.auditService.createSnapshot('pre_batch_update');
+    } catch (err) {
+      this.logger.warn('Pre-batch-update snapshot failed (non-blocking):', err);
+    }
+
+    const batchId = `upd_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}_${crypto.randomUUID().slice(0, 8)}`;
+    const rows = await this.db.select().from(suppliers).where(inArray(suppliers.id, ids));
+    if (rows.length === 0) {
+      return { updated: 0, notFound: ids.length, batchId };
+    }
+
+    // 把追加标签并入现有「、」拼接串，成员去重
+    const mergeTags = (existing: string | null, append: string[]): string => {
+      const cur = (existing || '').split(/[/、，]/).map((x) => x.trim()).filter(Boolean);
+      const set = new Set(cur);
+      for (const t of append) {
+        const v = (t || '').trim();
+        if (v) set.add(v);
+      }
+      return Array.from(set).join('、');
+    };
+
+    await this.db.transaction(async (tx) => {
+      for (const row of rows) {
+        const updateData: Record<string, unknown> = { updatedAt: new Date() };
+        if (patch.riskStatus !== undefined) updateData.riskStatus = patch.riskStatus;
+        if (patch.isInStock !== undefined) updateData.isInStock = patch.isInStock;
+        if (patch.supplierType !== undefined) {
+          updateData.supplierType = patch.supplierType
+            ? normalizeSupplierType(patch.supplierType, row.accountName || '')
+            : null;
+        }
+        if (patch.cooperationCategory !== undefined) updateData.cooperationCategory = patch.cooperationCategory;
+        if (patch.entityType !== undefined) updateData.entityType = patch.entityType;
+        if (patch.appendStyles?.length) updateData.subCategory = mergeTags(row.subCategory, patch.appendStyles);
+        if (patch.appendCooperationTypes?.length) updateData.cooperationType = mergeTags(row.cooperationType, patch.appendCooperationTypes);
+
+        await tx.update(suppliers).set(updateData).where(eq(suppliers.id, row.id));
+        const newData = { ...row, ...updateData };
+        await tx.insert(auditLog).values({
+          operation: 'UPDATE',
+          recordId: row.id,
+          batchId,
+          oldData: row,
+          newData,
+          operatedBy,
+        });
+      }
+    });
+
+    this.logger.log(`Batch updated ${rows.length} suppliers (batch ${batchId}) by ${operatedBy}`);
+    return { updated: rows.length, notFound: ids.length - rows.length, batchId };
+  }
+
   /** 提取字符串中所有长度>=2的连续子串（用于模糊匹配） */
   /** 比较前对名称做规范化：去除括号内容、地名、行业通用词、法人主体后缀 */
   private normalizeName(str: string): string {
