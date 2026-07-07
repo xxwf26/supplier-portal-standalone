@@ -11,6 +11,7 @@ import { AuditModule } from './modules/audit/audit.module';
 
 import { ConfigModule as AppConfigModule } from './modules/config/config.module';
 import { ArtistScrapeModule } from './modules/artist-scrape/artist-scrape.module';
+import { ShortlistModule } from './modules/shortlist/shortlist.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ArtistScrapeModule } from './modules/artist-scrape/artist-scrape.module
     UploadModule,
     AppConfigModule,
     ArtistScrapeModule,
+    ShortlistModule,
     // ViewModule must be registered last as catch-all route
     ViewModule,
   ],

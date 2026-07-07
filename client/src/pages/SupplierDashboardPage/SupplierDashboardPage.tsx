@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon, ListChecksIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
 import FilterPanelSection, { IFilterState, STORAGE_KEY } from './FilterPanelSection';
@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import HistoryPanel from './HistoryPanel';
+import ShortlistPanel, { AddToShortlistDialog } from './ShortlistPanel';
 import DuplicateCheckPanel from './DuplicateCheckPanel';
 import { normalizeSupplierType } from '@/lib/supplierUtils';
 import { normalizeForSearch } from '@/lib/chineseNormalize';
@@ -179,6 +180,8 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
+  const [isShortlistOpen, setIsShortlistOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   // 搜索防抖：输入框即时回显 keyword，实际过滤用 debouncedKeyword，避免每次按键全量重算
   const debouncedKeyword = useDebouncedValue(keyword, 300);
@@ -359,6 +362,15 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
     const raw = rawSuppliers.find((r) => r.id === supplier.id);
     setSelectedRawSupplier(raw || null);
     setSelectedSupplier(supplier);
+    setIsModalOpen(true);
+  }, [rawSuppliers]);
+
+  const handleOpenSupplierById = useCallback((id: string) => {
+    const raw = rawSuppliers.find((r) => r.id === id);
+    if (!raw) { toast.error('该画师可能已被删除'); return; }
+    setSelectedRawSupplier(raw);
+    setSelectedSupplier(processSupplier(raw));
+    setIsShortlistOpen(false);
     setIsModalOpen(true);
   }, [rawSuppliers]);
 
@@ -675,6 +687,10 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
                         <ScanSearchIcon className="w-3.5 h-3.5" />
                         查重
                       </Button>
+                      <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setIsShortlistOpen(true)}>
+                        <ListChecksIcon className="w-3.5 h-3.5" />
+                        清单
+                      </Button>
                       <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsImportOpen(true)}>
                         <UploadIcon className="w-3.5 h-3.5" />
                         导入 Excel
@@ -895,6 +911,15 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
                 <>
                   <div className="w-px h-5 bg-border" />
                   <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => setAddToListOpen(true)}
+                  >
+                    <ListChecksIcon className="w-3.5 h-3.5" />
+                    加入清单
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -929,6 +954,8 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
 
       <HistoryPanel open={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onDataChange={fetchSuppliers} />
       <DuplicateCheckPanel open={isDuplicateOpen} onClose={() => setIsDuplicateOpen(false)} onDeleted={fetchSuppliers} suppliers={rawSuppliers} />
+      <ShortlistPanel open={isShortlistOpen} onClose={() => setIsShortlistOpen(false)} onOpenSupplier={handleOpenSupplierById} />
+      <AddToShortlistDialog open={addToListOpen} onClose={() => setAddToListOpen(false)} supplierIds={Array.from(selectedIds)} />
 
       {/* 导出字段选择对话框 */}
       <ExportFieldsDialog

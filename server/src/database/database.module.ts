@@ -4,8 +4,9 @@ import { drizzle, MySql2Database } from 'drizzle-orm/mysql2';
 import * as mysql from 'mysql2/promise';
 import * as schema from './schema';
 import * as filterConfigSchema from './filter-config.schema';
+import * as shortlistSchema from './shortlist.schema';
 
-const allSchemas = { ...schema, ...filterConfigSchema };
+const allSchemas = { ...schema, ...filterConfigSchema, ...shortlistSchema };
 
 export const DRIZZLE_DATABASE = 'DRIZZLE_DATABASE';
 
