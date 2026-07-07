@@ -1,12 +1,13 @@
 import * as XLSX from 'xlsx';
 import type { ISupplier } from '@/api/types';
 
-/** 把结构化字段拍平成可读文本，表头与导入模板一致，可往返 */
-function priceText(s: ISupplier): string {
+/** 报价参考：结构化报价项（合作类型:单价单位） */
+function priceItemsText(s: ISupplier): string {
   const items = Array.isArray(s.priceItems) ? s.priceItems : [];
-  if (items.length > 0) {
-    return items.map((p) => `${p.cooperationType}:${p.unitPrice}${p.priceUnit || ''}`).join('；');
-  }
+  return items.map((p) => `${p.cooperationType}:${p.unitPrice}${p.priceUnit || ''}`).join('；');
+}
+/** 报价备注：自由文本（旧的 priceRange 字段） */
+function priceNotesText(s: ISupplier): string {
   return s.priceRange || '';
 }
 
@@ -36,7 +37,8 @@ export function exportSuppliersToExcel(suppliers: ISupplier[], filename = '画�
     '合作品类': s.cooperationCategory || '',
     '合作类型': s.cooperationType || '',
     '擅长风格': s.subCategory || '',
-    '报价参考': priceText(s),
+    '报价参考': priceItemsText(s),
+    '报价备注': priceNotesText(s),
     '评分': s.rating ?? '',
     '合作频次': s.cooperationCount ?? 0,
     '风险状态': s.riskStatus || '',
@@ -56,7 +58,7 @@ export function exportSuppliersToExcel(suppliers: ISupplier[], filename = '画�
   // 适度列宽
   ws['!cols'] = [
     { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 20 },
-    { wch: 20 }, { wch: 6 }, { wch: 8 }, { wch: 10 }, { wch: 8 },
+    { wch: 20 }, { wch: 20 }, { wch: 6 }, { wch: 8 }, { wch: 10 }, { wch: 8 },
     { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 },
     { wch: 12 }, { wch: 24 }, { wch: 28 }, { wch: 30 },
   ];
