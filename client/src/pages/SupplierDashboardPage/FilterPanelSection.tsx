@@ -14,6 +14,7 @@ export interface IFilterState {
   ratings: string[];
   status: string[];
   projects: string[];
+  contractExpiry: string[];
   keyword: string;
 }
 
@@ -124,6 +125,7 @@ export default function FilterPanelSection({
     ratings: [],
     status: [],
     projects: [],
+    contractExpiry: [],
     keyword: '',
   });
 
@@ -166,12 +168,12 @@ export default function FilterPanelSection({
   };
 
   const clearFilters = () => {
-    setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [0, 10000], priceUnset: false, ratings: [], status: [], projects: [], keyword: '' });
+    setFilters({ types: [], cooperationTypes: [], styles: [], priceRange: [0, 10000], priceUnset: false, ratings: [], status: [], projects: [], contractExpiry: [], keyword: '' });
   };
 
   const hasActiveFilters = filters.types.length > 0 || filters.cooperationTypes.length > 0 ||
     filters.styles.length > 0 || filters.status.length > 0 || filters.projects.length > 0 ||
-    filters.ratings.length > 0 ||
+    filters.ratings.length > 0 || filters.contractExpiry.length > 0 ||
     filters.keyword !== '' || filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000 || filters.priceUnset;
 
   const activeFilterCount =
@@ -181,6 +183,7 @@ export default function FilterPanelSection({
     filters.status.length +
     filters.projects.length +
     filters.ratings.length +
+    filters.contractExpiry.length +
     (filters.keyword !== '' ? 1 : 0) +
     (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 10000 || filters.priceUnset ? 1 : 0);
 
@@ -314,6 +317,26 @@ export default function FilterPanelSection({
                 labelClassName={option.color}
               />
             ))}
+          </div>
+        </Section>
+        )}
+
+        {/* 合同到期 — 仅管理员可见 */}
+        {isAdmin && (
+        <Section title="合同到期">
+          <div className="flex flex-wrap gap-1.5">
+            <Pill
+              active={filters.contractExpiry.includes('soon')}
+              onClick={() => toggleArrayFilter('contractExpiry', 'soon')}
+            >
+              30天内到期
+            </Pill>
+            <Pill
+              active={filters.contractExpiry.includes('expired')}
+              onClick={() => toggleArrayFilter('contractExpiry', 'expired')}
+            >
+              已过期
+            </Pill>
           </div>
         </Section>
         )}

@@ -233,6 +233,12 @@ export default function SupplierDetailModal({
   const [nameVal, setNameVal] = useState('');
   const [supplierTypeVal, setSupplierTypeVal] = useState('');
   const [entityTypeVal, setEntityTypeVal] = useState('');
+  // 合同 / 税务
+  const [contractEntityVal, setContractEntityVal] = useState('');
+  const [contractTypeVal, setContractTypeVal] = useState('');
+  const [contractNoVal, setContractNoVal] = useState('');
+  const [contractDeadlineVal, setContractDeadlineVal] = useState('');
+  const [taxStatusVal, setTaxStatusVal] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
   const [newCoopInput, setNewCoopInput] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -298,6 +304,11 @@ export default function SupplierDetailModal({
       if (d.nameVal !== undefined) setNameVal(d.nameVal);
       if (d.supplierTypeVal !== undefined) setSupplierTypeVal(d.supplierTypeVal);
       if (d.entityTypeVal !== undefined) setEntityTypeVal(d.entityTypeVal);
+      if (d.contractEntityVal !== undefined) setContractEntityVal(d.contractEntityVal);
+      if (d.contractTypeVal !== undefined) setContractTypeVal(d.contractTypeVal);
+      if (d.contractNoVal !== undefined) setContractNoVal(d.contractNoVal);
+      if (d.contractDeadlineVal !== undefined) setContractDeadlineVal(d.contractDeadlineVal);
+      if (d.taxStatusVal !== undefined) setTaxStatusVal(d.taxStatusVal);
     } catch {}
     setDraftSavedAt(null);
   }, [draftKey]);
@@ -312,6 +323,7 @@ export default function SupplierDetailModal({
           artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
           cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
           styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal,
+          contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal,
           noteImages,
           savedAt: new Date().toISOString(),
         }));
@@ -320,7 +332,8 @@ export default function SupplierDetailModal({
     return () => clearTimeout(timer);
   }, [isEditing, draftKey, artworkUrls, manualLinkEntries, priceItemEntries,
     contactItemEntries, cooperationTypeVal, cooperationCountVal, ratingVal,
-    statusVal, styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages]);
+    statusVal, styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal,
+    contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal, noteImages]);
 
   // 进入编辑时检查草稿
   useEffect(() => {
@@ -343,16 +356,32 @@ export default function SupplierDetailModal({
     return `${Math.floor(m / 60)} 小时前`;
   }
 
+  // 合同到期状态：返回剩余天数与语义色（过期红 / 30 天内橙 / 其余常规）
+  function deadlineStatus(dateStr: string | null | undefined) {
+    if (!dateStr) return null;
+    const d = new Date(String(dateStr).slice(0, 10));
+    if (isNaN(d.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (days < 0) return { days, label: `已过期 ${-days} 天`, tone: 'text-red-600' };
+    if (days === 0) return { days, label: '今天到期', tone: 'text-red-600' };
+    if (days <= 30) return { days, label: `${days} 天后到期`, tone: 'text-amber-600' };
+    return { days, label: `${days} 天后到期`, tone: 'text-muted-foreground' };
+  }
+
   // 当前表单值的签名（用于脏检查 / 判断"是否真的改过"）。字段集与草稿一致。
   const formSignature = useMemo(
     () => JSON.stringify({
       artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
       cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
       styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages,
+      contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal,
     }),
     [artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
       cooperationTypeVal, cooperationCountVal, ratingVal, statusVal, styleTags,
-      contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages],
+      contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages,
+      contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal],
   );
   // 进入编辑态那一刻的基线签名；与当前签名不同即为"脏"
   const editBaselineRef = useRef<string | null>(null);
@@ -390,6 +419,11 @@ export default function SupplierDetailModal({
           : []
       );
       setEntityTypeVal(supplier.entityType || '');
+      setContractEntityVal(supplier.contractEntity || '');
+      setContractTypeVal(supplier.contractType || '');
+      setContractNoVal(supplier.contractNo || '');
+      setContractDeadlineVal(supplier.contractDeadline ? String(supplier.contractDeadline).slice(0, 10) : '');
+      setTaxStatusVal(supplier.taxStatus || '');
       setCooperationCountVal(String(supplier.cooperationCount || 0));
       setRatingVal(supplier.rating != null ? String(supplier.rating) : '');
       setStatusVal(getStatusFromData(supplier));
@@ -674,6 +708,11 @@ export default function SupplierDetailModal({
         contactInfo: contactInfoText,
         supplierType: supplierTypeVal || undefined,
         entityType: entityTypeVal || null,
+        contractEntity: contractEntityVal.trim() || null,
+        contractType: contractTypeVal.trim() || null,
+        contractNo: contractNoVal.trim() || null,
+        contractDeadline: contractDeadlineVal || null,
+        taxStatus: taxStatusVal.trim() || null,
         isInStock: statusVal === 'in_stock',
         riskStatus: statusVal === 'blacklisted' ? '拉黑' : statusVal === 'outreach' ? '暂无' : '未填写',
       });
@@ -1618,6 +1657,73 @@ export default function SupplierDetailModal({
                 )}
               </div>
             </div>
+
+            {/* Row 8: 合同 / 税务 (仅管理员) */}
+            {isAdmin && (
+            <div className={cn(moduleBase)}>
+              <div className={moduleHeader}>
+                <FileTextIcon className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold">合同 / 税务</span>
+                {!isEditing && (() => {
+                  const st = deadlineStatus(supplier.contractDeadline);
+                  return st && st.days <= 30 ? (
+                    <Badge variant="outline" className={cn('ml-auto text-[10px]', st.tone)}>
+                      {st.label}
+                    </Badge>
+                  ) : null;
+                })()}
+              </div>
+              <div className={moduleBody}>
+                {isEditing ? (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-muted-foreground">合同主体</span>
+                      <Input value={contractEntityVal} onChange={(e) => setContractEntityVal(e.target.value)} className="h-7 text-xs" placeholder="签约主体" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-muted-foreground">合同类型</span>
+                      <Input value={contractTypeVal} onChange={(e) => setContractTypeVal(e.target.value)} className="h-7 text-xs" placeholder="如 框架/单次" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-muted-foreground">合同编号</span>
+                      <Input value={contractNoVal} onChange={(e) => setContractNoVal(e.target.value)} className="h-7 text-xs" placeholder="编号" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-muted-foreground">合同到期日</span>
+                      <Input type="date" value={contractDeadlineVal} onChange={(e) => setContractDeadlineVal(e.target.value)} className="h-7 text-xs" />
+                    </label>
+                    <label className="flex flex-col gap-1 col-span-2">
+                      <span className="text-[10px] text-muted-foreground">税务状态</span>
+                      <Input value={taxStatusVal} onChange={(e) => setTaxStatusVal(e.target.value)} className="h-7 text-xs" placeholder="如 已开票/待开票/免税" />
+                    </label>
+                  </div>
+                ) : (
+                  (supplier.contractEntity || supplier.contractType || supplier.contractNo || supplier.contractDeadline || supplier.taxStatus) ? (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                      <div><span className="text-muted-foreground">合同主体：</span>{supplier.contractEntity || '—'}</div>
+                      <div><span className="text-muted-foreground">合同类型：</span>{supplier.contractType || '—'}</div>
+                      <div><span className="text-muted-foreground">合同编号：</span>{supplier.contractNo || '—'}</div>
+                      <div>
+                        <span className="text-muted-foreground">到期日：</span>
+                        {supplier.contractDeadline ? (
+                          <>
+                            {String(supplier.contractDeadline).slice(0, 10)}
+                            {(() => {
+                              const st = deadlineStatus(supplier.contractDeadline);
+                              return st ? <span className={cn('ml-1', st.tone)}>（{st.label}）</span> : null;
+                            })()}
+                          </>
+                        ) : '—'}
+                      </div>
+                      <div className="col-span-2"><span className="text-muted-foreground">税务状态：</span>{supplier.taxStatus || '—'}</div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-1">未设置</p>
+                  )
+                )}
+              </div>
+            </div>
+            )}
 
             {/* Edit action buttons */}
             {isEditing && (

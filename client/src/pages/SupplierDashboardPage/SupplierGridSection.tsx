@@ -42,10 +42,25 @@ export interface IProcessedSupplier {
   cooperationCount: number;
   riskStatus: string;
   cooperationCategory: string | null;
+  contractDeadline: string | null;
   updatedAt: string;
 }
 
 const typeConfig = SUPPLIER_TYPE_STYLE;
+
+// 合同到期状态：仅当 30 天内到期或已过期时返回徽章文案与色调
+export function cardDeadlineStatus(dateStr: string | null | undefined): { label: string; className: string } | null {
+  if (!dateStr) return null;
+  const d = new Date(String(dateStr).slice(0, 10));
+  if (isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((d.getTime() - today.getTime()) / 86400000);
+  if (days < 0) return { label: '合同已过期', className: 'bg-red-50 text-red-600 border-red-200' };
+  if (days === 0) return { label: '今天到期', className: 'bg-red-50 text-red-600 border-red-200' };
+  if (days <= 30) return { label: `${days}天后到期`, className: 'bg-amber-50 text-amber-600 border-amber-200' };
+  return null;
+}
 
 const statusConfig = {
   in_stock: {
@@ -240,6 +255,14 @@ const SupplierCard = React.memo(function SupplierCard({
               {supplier.riskStatus}
             </span>
           )}
+          {isAdmin && (() => {
+            const dl = cardDeadlineStatus(supplier.contractDeadline);
+            return dl ? (
+              <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border', dl.className)}>
+                {dl.label}
+              </span>
+            ) : null;
+          })()}
         </div>
 
         {/* 报价 */}

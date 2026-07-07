@@ -160,6 +160,7 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
     cooperationCount: raw.cooperationCount,
     riskStatus: raw.riskStatus,
     cooperationCategory: raw.cooperationCategory,
+    contractDeadline: raw.contractDeadline,
     updatedAt: raw.updatedAt,
   };
 }
@@ -206,6 +207,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
       currentFilters.status.length +
       currentFilters.projects.length +
       currentFilters.ratings.length +
+      currentFilters.contractExpiry.length +
       (currentFilters.priceRange[0] !== 0 || currentFilters.priceRange[1] !== 10000 || currentFilters.priceUnset ? 1 : 0)
     );
   }, [currentFilters]);
@@ -271,6 +273,24 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
         (hasUnset && (s.rating === null || s.rating === undefined)) ||
         (realRatings.length > 0 && s.rating != null && realRatings.includes(String(s.rating)))
       );
+    }
+
+    // 合同到期过滤：30天内到期(soon) / 已过期(expired)
+    if (currentFilters.contractExpiry.length > 0) {
+      const wantSoon = currentFilters.contractExpiry.includes('soon');
+      const wantExpired = currentFilters.contractExpiry.includes('expired');
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const todayMs = startOfToday.getTime();
+      result = result.filter((s) => {
+        if (!s.contractDeadline) return false;
+        const d = new Date(String(s.contractDeadline).slice(0, 10));
+        if (isNaN(d.getTime())) return false;
+        const days = Math.round((d.getTime() - todayMs) / 86400000);
+        if (wantExpired && days < 0) return true;
+        if (wantSoon && days >= 0 && days <= 30) return true;
+        return false;
+      });
     }
 
     return result;
