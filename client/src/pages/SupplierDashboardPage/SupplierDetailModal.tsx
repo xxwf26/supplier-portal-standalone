@@ -223,6 +223,7 @@ export default function SupplierDetailModal({
   const [noteImages, setNoteImages] = useState<string[]>([]);
   const [manualLinkEntries, setManualLinkEntries] = useState<ManualLinkEntry[]>([]);
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
+  const [priceRangeVal, setPriceRangeVal] = useState('');
   const [contactItemEntries, setContactItemEntries] = useState<ContactItemEntry[]>([]);
   const [cooperationTypeVal, setCooperationTypeVal] = useState<string[]>([]);
   const [cooperationCountVal, setCooperationCountVal] = useState('');
@@ -294,6 +295,7 @@ export default function SupplierDetailModal({
       if (d.noteImages) setNoteImages(d.noteImages);
       if (d.manualLinkEntries) setManualLinkEntries(d.manualLinkEntries);
       if (d.priceItemEntries) setPriceItemEntries(d.priceItemEntries);
+      if (d.priceRangeVal !== undefined) setPriceRangeVal(d.priceRangeVal);
       if (d.contactItemEntries) setContactItemEntries(d.contactItemEntries);
       if (d.cooperationTypeVal !== undefined) setCooperationTypeVal(d.cooperationTypeVal);
       if (d.cooperationCountVal !== undefined) setCooperationCountVal(d.cooperationCountVal);
@@ -320,7 +322,7 @@ export default function SupplierDetailModal({
       try {
         localStorage.setItem(draftKey, JSON.stringify({
           _v: 2,
-          artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
+          artworkUrls, manualLinkEntries, priceItemEntries, priceRangeVal, contactItemEntries,
           cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
           styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal,
           contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal,
@@ -333,7 +335,7 @@ export default function SupplierDetailModal({
   }, [isEditing, draftKey, artworkUrls, manualLinkEntries, priceItemEntries,
     contactItemEntries, cooperationTypeVal, cooperationCountVal, ratingVal,
     statusVal, styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal,
-    contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal, noteImages]);
+    contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal, priceRangeVal, noteImages]);
 
   // 进入编辑时检查草稿
   useEffect(() => {
@@ -373,12 +375,12 @@ export default function SupplierDetailModal({
   // 当前表单值的签名（用于脏检查 / 判断"是否真的改过"）。字段集与草稿一致。
   const formSignature = useMemo(
     () => JSON.stringify({
-      artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
+      artworkUrls, manualLinkEntries, priceItemEntries, priceRangeVal, contactItemEntries,
       cooperationTypeVal, cooperationCountVal, ratingVal, statusVal,
       styleTags, contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages,
       contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal,
     }),
-    [artworkUrls, manualLinkEntries, priceItemEntries, contactItemEntries,
+    [artworkUrls, manualLinkEntries, priceItemEntries, priceRangeVal, contactItemEntries,
       cooperationTypeVal, cooperationCountVal, ratingVal, statusVal, styleTags,
       contactInfoText, nameVal, supplierTypeVal, entityTypeVal, noteImages,
       contractEntityVal, contractTypeVal, contractNoVal, contractDeadlineVal, taxStatusVal],
@@ -407,6 +409,7 @@ export default function SupplierDetailModal({
         priceUnit: p.priceUnit,
       }))
     );
+    setPriceRangeVal(supplier.priceRange || '');
     setContactItemEntries(
       toArr<IContactItem>(supplier.contactItems).map((c) => ({
         type: c.type,
@@ -699,6 +702,7 @@ export default function SupplierDetailModal({
         artworkUrls,
         manualLinks: manualLinksRecord,
         priceItems,
+        priceRange: priceRangeVal.trim() || null,
         contactItems,
         noteImages,
         cooperationType: cooperationTypeVal.length > 0 ? cooperationTypeVal.join('、') : null,
@@ -1303,8 +1307,29 @@ export default function SupplierDetailModal({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground text-center py-1">暂无报价信息</p>
+                    !priceRangeVal ? <p className="text-xs text-muted-foreground text-center py-1">暂无报价信息</p> : null
                   )
+                )}
+
+                {/* 报价备注（自由文本）——承接旧的 priceRange 字段，可与结构化报价并存 */}
+                {isEditing ? (
+                  <div className="mt-2 pt-2 border-t border-border/40">
+                    <label className="text-[10px] text-muted-foreground mb-1 block">报价备注（自由文本）</label>
+                    <textarea
+                      value={priceRangeVal}
+                      onChange={(e) => setPriceRangeVal(e.target.value)}
+                      placeholder="补充说明，如「线稿300，含商用+700」；导入的旧报价也在这里"
+                      rows={2}
+                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs resize-y focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                ) : (
+                  priceRangeVal ? (
+                    <div className="mt-2 pt-2 border-t border-border/40">
+                      <span className="text-[10px] text-muted-foreground">报价备注：</span>
+                      <p className="text-xs whitespace-pre-wrap mt-0.5">{priceRangeVal}</p>
+                    </div>
+                  ) : null
                 )}
               </div>
             </div>

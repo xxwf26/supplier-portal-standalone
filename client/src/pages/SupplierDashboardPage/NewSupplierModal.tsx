@@ -103,6 +103,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
   const [newTagInput, setNewTagInput] = useState('');
   const [linkEntries, setLinkEntries] = useState<LinkEntry[]>([]);
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
+  const [priceRange, setPriceRange] = useState('');
   const [contactItemEntries, setContactItemEntries] = useState<ContactItemEntry[]>([]);
 
   // 小红书链接 AI 自动填充
@@ -112,7 +113,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
   const isDirty = accountName.trim() !== '' || supplierType !== '' || cooperationTypes.length > 0 ||
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
     priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0 ||
-    noteImages.length > 0 ||
+    noteImages.length > 0 || priceRange !== '' ||
     contractEntity !== '' || contractType !== '' || contractNo !== '' || contractDeadline !== '' || taxStatus !== '';
 
   // 输入名称时实时检测相似画师（纯前端比对，无需 API，防抖 400ms）
@@ -136,7 +137,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         _v: 2,
         accountName, supplierType, cooperationTypes,
         contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
-        contactItemEntries, noteImages,
+        contactItemEntries, noteImages, priceRange,
         contractEntity, contractType, contractNo, contractDeadline, taxStatus,
         savedAt: new Date().toISOString(),
       };
@@ -145,7 +146,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     return () => clearTimeout(timer);
   }, [open, isDirty, accountName, supplierType, cooperationTypes,
     contactInfo, entityType, styleTags, linkEntries, priceItemEntries, contactItemEntries,
-    contractEntity, contractType, contractNo, contractDeadline, taxStatus]);
+    contractEntity, contractType, contractNo, contractDeadline, taxStatus, priceRange]);
 
   // 打开时检测草稿（修复 stale closure：移除 !isDirty 条件，有草稿就显示 banner）
   useEffect(() => {
@@ -175,6 +176,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
       setPriceItemEntries(d.priceItemEntries ?? []);
       setContactItemEntries(d.contactItemEntries ?? []);
       setNoteImages(d.noteImages ?? []);
+      setPriceRange(d.priceRange ?? '');
       setContractEntity(d.contractEntity ?? '');
       setContractType(d.contractType ?? '');
       setContractNo(d.contractNo ?? '');
@@ -201,6 +203,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     setNewTagInput('');
     setLinkEntries([]);
     setPriceItemEntries([]);
+    setPriceRange('');
     setContactItemEntries([]);
     setArtworkUrls([]);
     setNoteImages([]);
@@ -457,6 +460,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         subCategory: styleTags.join('、') || undefined,
         socialLinks: Object.keys(manualLinks).length > 0 ? manualLinks : undefined,
         priceItems,
+        priceRange: priceRange.trim() || undefined,
         contactItems,
         artworkUrls: artworkUrls.length > 0 ? artworkUrls : undefined,
         noteImages: noteImages.length > 0 ? noteImages : undefined,
@@ -659,6 +663,16 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                     添加报价
                   </Button>
                 )}
+                <div className="pt-1">
+                  <label className="text-[11px] text-muted-foreground mb-1 block">报价备注（自由文本）</label>
+                  <textarea
+                    value={priceRange}
+                    onChange={(e) => setPriceRange(e.target.value)}
+                    placeholder="补充说明，如「线稿300，含商用+700」"
+                    rows={2}
+                    className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs resize-y focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
               </div>
             </div>
 
