@@ -884,7 +884,10 @@ export default function SupplierDetailModal({
           </div>
         )}
 
-        <ScrollArea className="max-h-[calc(90vh-100px)]">
+        {/* min-w-0 + 强制 Radix viewport 内层 table wrapper 为 block：
+            避免横向超宽内容（如多张作品图）把 ScrollArea 撑出弹窗、被 overflow-hidden 裁剪
+            而无法查看。仅作用于本弹窗，不影响其他 ScrollArea。 */}
+        <ScrollArea className="max-h-[calc(90vh-100px)] min-w-0 [&_[data-slot=scroll-area-viewport]>div]:!block">
           <div className="px-4 py-4 space-y-3">
 
             {/* Row 1: Stats Dashboard — 3 column */}
