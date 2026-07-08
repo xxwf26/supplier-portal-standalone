@@ -178,8 +178,8 @@ function LightboxOverlay({
 
 function getStatusFromData(supplier: ISupplier): 'in_stock' | 'outreach' | 'blacklisted' | 'unset' {
   if (supplier.riskStatus === '拉黑') return 'blacklisted';
-  if (!supplier.riskStatus || supplier.riskStatus === '未填写') return 'unset';
   if (supplier.isInStock) return 'in_stock';
+  if (!supplier.riskStatus || supplier.riskStatus === '未填写') return 'unset';
   return 'outreach';
 }
 
