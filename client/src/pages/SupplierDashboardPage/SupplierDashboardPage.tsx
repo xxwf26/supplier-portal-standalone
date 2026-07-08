@@ -643,16 +643,18 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
         <button
           title="卡片视图"
           onClick={() => handleLayoutMode('card')}
-          className={`h-7 px-2 rounded transition-colors ${layoutMode === 'card' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`h-7 px-2 rounded transition-colors inline-flex items-center gap-1 text-xs ${layoutMode === 'card' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
         >
           <LayoutGridIcon className="w-3.5 h-3.5" />
+          <span>卡片</span>
         </button>
         <button
           title="表格视图"
           onClick={() => handleLayoutMode('table')}
-          className={`h-7 px-2 rounded transition-colors ${layoutMode === 'table' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`h-7 px-2 rounded transition-colors inline-flex items-center gap-1 text-xs ${layoutMode === 'table' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
         >
           <TableIcon className="w-3.5 h-3.5" />
+          <span>表格</span>
         </button>
       </div>
 
