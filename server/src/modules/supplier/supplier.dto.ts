@@ -43,7 +43,7 @@ export class CreateSupplierDto implements ICreateSupplierDto {
 
   @IsOptional()
   @IsObject()
-  socialLinks?: Record<string, string>;
+  socialLinks?: Record<string, string[]>;
 
   @IsOptional()
   @IsString()
@@ -131,7 +131,7 @@ export class CreateSupplierDto implements ICreateSupplierDto {
 
   @IsOptional()
   @IsObject()
-  manualLinks?: Record<string, string>;
+  manualLinks?: Record<string, string[]>;
 
   @IsOptional()
   @IsArray()

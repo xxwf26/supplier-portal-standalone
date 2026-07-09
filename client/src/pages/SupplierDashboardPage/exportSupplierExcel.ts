@@ -17,8 +17,20 @@ function contactText(s: ISupplier): string {
 }
 
 function linkText(s: ISupplier): string {
-  const merged: Record<string, string> = { ...(s.socialLinks || {}), ...(s.manualLinks || {}) };
-  return Object.entries(merged).filter(([, v]) => v).map(([k, v]) => `${k}:${v}`).join('；');
+  // 合并 social + manual，同平台多条链接合并去重；平台内多 url 用逗号、平台间用；
+  const merged: Record<string, string[]> = {};
+  const add = (m?: Record<string, string[]>) => {
+    for (const [k, v] of Object.entries(m || {})) {
+      const urls = Array.isArray(v) ? v : v ? [v as unknown as string] : [];
+      merged[k] = Array.from(new Set([...(merged[k] || []), ...urls.filter(Boolean)]));
+    }
+  };
+  add(s.socialLinks);
+  add(s.manualLinks);
+  return Object.entries(merged)
+    .filter(([, urls]) => urls.length)
+    .map(([k, urls]) => `${k}:${urls.join(',')}`)
+    .join('；');
 }
 
 function dateOnly(v: string | null): string {

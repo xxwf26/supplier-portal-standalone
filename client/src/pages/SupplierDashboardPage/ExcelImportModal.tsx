@@ -90,7 +90,7 @@ const FIELD_LABELS: Record<string, string> = {
 
 function mapRow(row: Record<string, unknown>, columnMaps: ColumnMap[]): Partial<Record<string, unknown>> {
   const result: Record<string, unknown> = {};
-  const socialLinks: Record<string, string> = {};
+  const socialLinks: Record<string, string[]> = {};
 
   for (const mapping of columnMaps) {
     const rawValue = row[mapping.excelCol];
@@ -99,7 +99,11 @@ function mapRow(row: Record<string, unknown>, columnMaps: ColumnMap[]): Partial<
 
     if (mapping.field.startsWith('socialLink_')) {
       const platform = mapping.field.replace('socialLink_', '');
-      if (strValue) socialLinks[platform] = strValue;
+      // 单元格可能是导出时逗号分隔的多条链接（url1,url2），拆开并去重
+      const urls = Array.from(
+        new Set(strValue.split(/[,，]/).map((u) => u.trim()).filter(Boolean)),
+      );
+      if (urls.length) socialLinks[platform] = urls;
     } else {
       result[mapping.field] = strValue;
     }

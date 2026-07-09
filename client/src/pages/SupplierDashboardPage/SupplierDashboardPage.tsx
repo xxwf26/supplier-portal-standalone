@@ -33,6 +33,7 @@ import { normalizeForSearch } from '@/lib/chineseNormalize';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ExportFields, DEFAULT_EXPORT_FIELDS, EXPORT_FIELD_LABELS, exportSuppliersToPdf } from './exportSupplierPdf';
 import { exportSuppliersToExcel } from './exportSupplierExcel';
+import { normalizeLinkMap } from './supplierFormShared';
 
 const EXPORT_FIELDS_STORAGE_KEY = '__export_fields';
 
@@ -59,13 +60,6 @@ function toArray<T>(v: unknown): T[] {
     try { const p = JSON.parse(v); return Array.isArray(p) ? (p as T[]) : []; } catch { return []; }
   }
   return [];
-}
-function toObject(v: unknown): Record<string, string> {
-  if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, string>;
-  if (typeof v === 'string') {
-    try { const p = JSON.parse(v); return p && typeof p === 'object' && !Array.isArray(p) ? p : {}; } catch { return {}; }
-  }
-  return {};
 }
 
 // 转换API数据到前端格式
@@ -123,13 +117,16 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
     project.push(raw.contractEntity);
   }
 
-  const links: Record<string, string> = {};
-  Object.entries(toObject(raw.socialLinks)).forEach(([key, url]) => {
-    if (url) links[key] = url;
-  });
-  Object.entries(toObject(raw.manualLinks)).forEach(([key, url]) => {
-    if (url) links[key] = url;
-  });
+  // 合并 social + manual 平台链接，同平台多条链接合并去重
+  const links: Record<string, string[]> = {};
+  const mergeLinks = (src: Record<string, string[]>) => {
+    Object.entries(src).forEach(([key, urls]) => {
+      const merged = [...(links[key] || []), ...urls];
+      links[key] = Array.from(new Set(merged));
+    });
+  };
+  mergeLinks(normalizeLinkMap(raw.socialLinks));
+  mergeLinks(normalizeLinkMap(raw.manualLinks));
 
   let contacts: { wechat?: string; email?: string } | undefined;
   if (raw.contactInfo) {
@@ -323,7 +320,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
         // 搜索结构化联系方式（微信/QQ/电话）
         if (s.contactItems?.some(c => c.value.toLowerCase().includes(kw))) return true;
         // 搜索平台链接
-        if (s.links && Object.values(s.links).some(v => v.toLowerCase().includes(kw))) return true;
+        if (s.links && Object.values(s.links).flat().some(v => v.toLowerCase().includes(kw))) return true;
         return false;
       });
     }

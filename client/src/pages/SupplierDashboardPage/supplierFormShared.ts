@@ -60,3 +60,41 @@ export interface ContactItemEntry {
   type: string;
   value: string;
 }
+
+/**
+ * 把 socialLinks / manualLinks 这类"平台→链接"的 JSON 列归一化为
+ * `Record<string, string[]>`（每平台多条链接）。
+ *
+ * 兼容三种历史形态，是"零数据库迁移"支持多链接的核心：
+ * - 新格式 `{p: [url1, url2]}`：过滤空串后原样返回；
+ * - **老格式 `{p: "url"}`：单字符串自动包成 `[url]`**（老记录读出即升级，无需迁移）；
+ * - 字符串化的 JSON（后端偶发把 json 列当字符串返回）：先 parse 再归一化。
+ *
+ * 供 SupplierDetailModal / SupplierDashboardPage 的读取路径共用，替代原先各自
+ * 重复的 toObj / toObject，避免再次漂移。
+ */
+export function normalizeLinkMap(v: unknown): Record<string, string[]> {
+  let obj: unknown = v;
+  if (typeof v === 'string') {
+    try {
+      obj = JSON.parse(v);
+    } catch {
+      return {};
+    }
+  }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {};
+  const out: Record<string, string[]> = {};
+  for (const [platform, raw] of Object.entries(obj as Record<string, unknown>)) {
+    let urls: string[];
+    if (Array.isArray(raw)) {
+      urls = raw.filter((u): u is string => typeof u === 'string' && !!u.trim()).map((u) => u.trim());
+    } else if (typeof raw === 'string' && raw.trim()) {
+      urls = [raw.trim()];
+    } else {
+      urls = [];
+    }
+    if (urls.length) out[platform] = urls;
+  }
+  return out;
+}
+

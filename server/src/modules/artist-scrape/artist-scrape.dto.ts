@@ -2,8 +2,8 @@ import { IsString } from 'class-validator';
 
 export class ScrapeArtistDto {
   /**
-   * 小红书分享内容。可以是纯链接，也可以是 App 分享出来的一整段
-   * 「文案 + 短链 + 口令」文本——service 会从中提取出真正的 URL。
+   * 画师链接分享内容。可以是小红书笔记链接 / App 分享的整段「文案 + 短链 + 口令」，
+   * 也可以是米画师画师主页链接——service 会从中提取 URL 并按域名分派抓取。
    */
   @IsString()
   url!: string;

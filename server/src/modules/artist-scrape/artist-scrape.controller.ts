@@ -18,8 +18,9 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { assertSafeUrl } from '../../common/http/url-safety';
 
-/** 只允许代理小红书自家图片域名，避免变成任意 URL 的开放代理。 */
+/** 只允许代理小红书 / 米画师自家图片域名，避免变成任意 URL 的开放代理。 */
 const XHS_IMAGE_HOST = /(^|\.)(xhscdn\.com|xiaohongshu\.com)$/i;
+const MIHUASHI_IMAGE_HOST = /(^|\.)mihuashi\.com$/i;
 
 @Controller('/api/artist-scrape')
 export class ArtistScrapeController {
@@ -33,7 +34,7 @@ export class ArtistScrapeController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async scrape(@Body() dto: ScrapeArtistDto): Promise<ScrapeResult> {
-    return this.service.scrapeXiaohongshu(dto.url);
+    return this.service.scrapeLink(dto.url);
   }
 
   /**
@@ -53,8 +54,10 @@ export class ArtistScrapeController {
     } catch {
       throw new BadRequestException('非法图片地址');
     }
-    if (!XHS_IMAGE_HOST.test(target.hostname)) {
-      throw new BadRequestException('仅允许代理小红书图片');
+    const isXhs = XHS_IMAGE_HOST.test(target.hostname);
+    const isMihuashi = MIHUASHI_IMAGE_HOST.test(target.hostname);
+    if (!isXhs && !isMihuashi) {
+      throw new BadRequestException('仅允许代理小红书 / 米画师图片');
     }
     try {
       await assertSafeUrl(u);
@@ -62,6 +65,8 @@ export class ArtistScrapeController {
       throw new BadRequestException('图片地址不安全');
     }
 
+    // 按来源给对应 Referer 绕过防盗链
+    const referer = isMihuashi ? 'https://www.mihuashi.com/' : 'https://www.xiaohongshu.com/';
     const client = target.protocol === 'http:' ? http : https;
     const upstream = client.get(
       u,
@@ -70,7 +75,7 @@ export class ArtistScrapeController {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Referer: 'https://www.xiaohongshu.com/',
+          Referer: referer,
         },
       },
       (up) => {
