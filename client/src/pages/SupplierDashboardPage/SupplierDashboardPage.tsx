@@ -29,7 +29,7 @@ import SupplierTableSection from './SupplierTableSection';
 import BatchEditDialog from './BatchEditDialog';
 import DuplicateCheckPanel from './DuplicateCheckPanel';
 import { normalizeSupplierType } from '@/lib/supplierUtils';
-import { normalizeForSearch } from '@/lib/chineseNormalize';
+import { normalizeForSearch, toPinyin } from '@/lib/chineseNormalize';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ExportFields, DEFAULT_EXPORT_FIELDS, EXPORT_FIELD_LABELS, exportSuppliersToPdf } from './exportSupplierPdf';
 import { exportSuppliersToExcel } from './exportSupplierExcel';
@@ -142,6 +142,7 @@ function processSupplier(raw: ISupplier): IProcessedSupplier {
   return {
     id: raw.id,
     name: raw.accountName,
+    namePinyin: toPinyin(raw.accountName),
     type,
     styles,
     cooperationTypes,
@@ -316,11 +317,18 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
     if (kw) {
       result = result.filter((s) => {
         if (normalizeForSearch(s.name).includes(kw)) return true;
+        // 拼音搜索：全拼(liyanfeng)或首字母(lyf)命中中文名
+        if (s.namePinyin && s.namePinyin.includes(kw)) return true;
         if (s.notes && normalizeForSearch(s.notes).includes(kw)) return true;
         // 搜索结构化联系方式（微信/QQ/电话）
         if (s.contactItems?.some(c => c.value.toLowerCase().includes(kw))) return true;
         // 搜索平台链接
         if (s.links && Object.values(s.links).flat().some(v => v.toLowerCase().includes(kw))) return true;
+        // 搜索擅长风格 / 合作类型 / 合作品类 / 所属项目
+        if (s.styles?.some(x => normalizeForSearch(x).includes(kw))) return true;
+        if (s.cooperationTypes?.some(x => normalizeForSearch(x).includes(kw))) return true;
+        if (s.cooperationCategory && normalizeForSearch(s.cooperationCategory).includes(kw)) return true;
+        if (s.project?.some(x => normalizeForSearch(x).includes(kw))) return true;
         return false;
       });
     }

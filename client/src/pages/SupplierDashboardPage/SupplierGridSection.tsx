@@ -20,6 +20,8 @@ import { IPriceItem, IContactItem } from '@/api/types';
 export interface IProcessedSupplier {
   id: string;
   name: string;
+  /** 名字的拼音索引串（全拼+首字母），供拼音搜索，processSupplier 预计算 */
+  namePinyin?: string;
   type: SupplierType;
   styles: string[];
   cooperationTypes: string[];
