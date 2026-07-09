@@ -29,8 +29,8 @@ export const suppliers = mysqlTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     accountName: varchar('account_name', { length: 255 }).notNull(),
-    /** 社媒平台链接 { weibo, xiaohongshu, bilibili, ... } */
-    socialLinks: json('social_links').$type<Record<string, string>>(),
+    /** 社媒平台链接 { weibo: [url...], xiaohongshu: [url...], ... }（每平台可多条） */
+    socialLinks: json('social_links').$type<Record<string, string[]>>(),
     subCategory: text('sub_category'),
     cooperationType: varchar('cooperation_type', { length: 255 }),
     priceRange: text('price_range'),
@@ -53,8 +53,8 @@ export const suppliers = mysqlTable(
     supplierType: varchar('supplier_type', { length: 255 }),
     /** 作品图片URL列表 */
     artworkUrls: json('artwork_urls').$type<string[]>(),
-    /** 手动补录的平台链接 */
-    manualLinks: json('manual_links').$type<Record<string, string>>(),
+    /** 手动补录的平台链接（每平台可多条） */
+    manualLinks: json('manual_links').$type<Record<string, string[]>>(),
     /** 备注区域的佐证图片URL列表 */
     noteImages: json('note_images').$type<string[]>(),
     importSource: varchar('import_source', { length: 255 }).default('manual'),

@@ -160,7 +160,9 @@ function buildSupplierCard(
     ? (() => {
         const links = s.links || {};
         const rows = Object.keys(links).length
-          ? Object.entries(links).map(([platform, url]) => `<div style="font-size:12px;margin-bottom:4px;word-break:break-all;"><span style="color:#475569;font-weight:600;">${esc(platformLabelMap[platform] || platform)}：</span><span style="color:#2563eb;">${esc(url)}</span></div>`).join('')
+          ? Object.entries(links).flatMap(([platform, urls]) =>
+              (urls || []).map((url) => `<div style="font-size:12px;margin-bottom:4px;word-break:break-all;"><span style="color:#475569;font-weight:600;">${esc(platformLabelMap[platform] || platform)}：</span><span style="color:#2563eb;">${esc(url)}</span></div>`),
+            ).join('')
           : '<span style="color:#9ca3af;font-size:13px;">暂无平台链接</span>';
         return card(sectionTitle('平台链接') + rows);
       })()

@@ -34,7 +34,7 @@ export interface IProcessedSupplier {
     wechat?: string;
     email?: string;
   };
-  links?: Record<string, string>;
+  links?: Record<string, string[]>;
   notes?: string;
   works?: string[];
   history?: string[];
@@ -148,7 +148,7 @@ const SupplierCard = React.memo(function SupplierCard({
     : [];
 
   // 平台链接（卡片只显示已补/待补 badge，悬浮显示具体链接名）
-  const linkEntries = Object.entries(supplier.links || {}).filter(([, v]) => v);
+  const linkEntries = Object.entries(supplier.links || {}).filter(([, urls]) => urls && urls.length > 0);
 
   // 合作类型（卡片不显示）
   const cooperationTypes = supplier.cooperationTypes || [];
@@ -322,12 +322,14 @@ const SupplierCard = React.memo(function SupplierCard({
             <div>
               <p className="text-[10px] font-medium text-muted-foreground mb-1">平台链接</p>
               <div className="space-y-0.5">
-                {linkEntries.map(([platform, url]) => (
-                  <p key={platform} className="text-foreground">
-                    <span className="text-muted-foreground w-14 inline-block capitalize">{platformLabels[platform] || platform}</span>
-                    <a href={url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-600 hover:underline truncate max-w-[140px] inline-block align-bottom">{url.replace(/^https?:\/\//, '')}</a>
-                  </p>
-                ))}
+                {linkEntries.flatMap(([platform, urls]) =>
+                  urls.map((url, ui) => (
+                    <p key={`${platform}-${ui}`} className="text-foreground">
+                      <span className="text-muted-foreground w-14 inline-block capitalize">{platformLabels[platform] || platform}</span>
+                      <a href={url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-600 hover:underline truncate max-w-[140px] inline-block align-bottom">{url.replace(/^https?:\/\//, '')}</a>
+                    </p>
+                  )),
+                )}
               </div>
             </div>
           )}

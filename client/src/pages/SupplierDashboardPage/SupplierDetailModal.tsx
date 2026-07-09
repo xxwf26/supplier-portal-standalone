@@ -43,6 +43,7 @@ import { artworkSrc } from '@/lib/imageSrc';
 import {
   PRICE_UNIT_OPTIONS, CONTACT_TYPE_OPTIONS, PLATFORM_OPTIONS,
   PLATFORM_LABELS, CONTACT_TYPE_LABELS, MAX_PRICE_ITEMS, MAX_CONTACT_ITEMS,
+  normalizeLinkMap,
   type PriceItemEntry, type ContactItemEntry,
 } from './supplierFormShared';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
@@ -75,14 +76,6 @@ function toArr<T>(v: unknown): T[] {
   }
   return [];
 }
-function toObj(v: unknown): Record<string, string> {
-  if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, string>;
-  if (typeof v === 'string') {
-    try { const p = JSON.parse(v); return p && typeof p === 'object' && !Array.isArray(p) ? p : {}; } catch { return {}; }
-  }
-  return {};
-}
-
 // ── 全屏灯箱 ────────────────────────────────────────────
 function LightboxOverlay({
   urls,
@@ -398,9 +391,9 @@ export default function SupplierDetailModal({
     if (!supplier) return;
     setArtworkUrls(toArr<string>(supplier.artworkUrls));
     setNoteImages(toArr<string>(supplier.noteImages));
-    const entries: ManualLinkEntry[] = Object.entries(toObj(supplier.manualLinks))
-      .filter(([, v]) => v)
-      .map(([platform, url]) => ({ platform, url }));
+    // 每平台的多条链接展开成多行 entry（每条 url 一行）
+    const entries: ManualLinkEntry[] = Object.entries(normalizeLinkMap(supplier.manualLinks))
+      .flatMap(([platform, urls]) => urls.map((url) => ({ platform, url })));
     setManualLinkEntries(entries);
     setPriceItemEntries(
       toArr<IPriceItem>(supplier.priceItems).map((p) => ({
@@ -532,13 +525,13 @@ export default function SupplierDetailModal({
     setManualLinkEntries((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // 粘贴小红书链接 → 后端抓取 + AI 总结 → 预填（编辑态，仅预填人工确认后保存）
+  // 粘贴画师链接（小红书/米画师）→ 后端抓取 + AI 总结 → 预填（编辑态，仅预填人工确认后保存）
   const handleScrape = async () => {
     const url = xhsUrl.trim();
-    if (!url) { toast.error('请先粘贴小红书主页链接'); return; }
+    if (!url) { toast.error('请先粘贴小红书或米画师画师链接'); return; }
     setScraping(true);
     try {
-      const res = await scrapeApi.fromXiaohongshu(url);
+      const res = await scrapeApi.fromLink(url);
       if (!res.ok) {
         toast.error(res.reason || '抓取失败，请手动填写');
         if (res.images?.length) setArtworkUrls((prev) => [...prev, ...res.images!.filter((u) => !prev.includes(u))]);
@@ -548,10 +541,11 @@ export default function SupplierDetailModal({
       // 账号名：仅在为空时填
       if (res.accountName && !nameVal.trim()) setNameVal(res.accountName);
 
-      // 小红书链接进手动链接（去重）。用后端解析出的纯链接
+      // 画师链接进手动链接（去重）。用后端解析出的纯链接，平台按识别结果选
       const linkUrl = res.resolvedUrl || url;
+      const platform = res.platform || 'xiaohongshu';
       setManualLinkEntries((prev) =>
-        prev.some((e) => e.url === linkUrl) ? prev : [...prev, { platform: 'xiaohongshu', url: linkUrl }],
+        prev.some((e) => e.url === linkUrl) ? prev : [...prev, { platform, url: linkUrl }],
       );
 
       // 作品图（去重追加）
@@ -652,7 +646,7 @@ export default function SupplierDetailModal({
 
     // 链接格式校验：必须在进入 try 前用 for...of 做，才能真正中止保存。
     // （原先写在 forEach 回调里 return 只跳出迭代、不中止 handleSave，非法链接照样提交）
-    const manualLinksRecord: Record<string, string> = {};
+    const manualLinksRecord: Record<string, string[]> = {};
     for (const entry of manualLinkEntries) {
       if (entry.platform && entry.url) {
         const url = entry.url.trim();
@@ -660,7 +654,9 @@ export default function SupplierDetailModal({
           toast.error(`链接格式不正确：${url}（需以 http:// 或 https:// 开头）`);
           return;
         }
-        manualLinksRecord[entry.platform] = url;
+        // 同平台累加进数组，完全相同的 url 去重
+        const list = (manualLinksRecord[entry.platform] ??= []);
+        if (!list.includes(url)) list.push(url);
       }
     }
 
@@ -756,14 +752,20 @@ export default function SupplierDetailModal({
 
   if (!supplier) return null;
 
-  const allLinks: Record<string, string> = {};
-  Object.entries(toObj(supplier.socialLinks)).forEach(([k, v]) => { if (v) allLinks[k] = v; });
-  Object.entries(toObj(supplier.manualLinks)).forEach(([k, v]) => { if (v) allLinks[k] = v; });
+  // 合并 social + manual 平台链接，同平台多条合并去重
+  const allLinks: Record<string, string[]> = {};
+  const mergeInto = (src: Record<string, string[]>) => {
+    Object.entries(src).forEach(([k, urls]) => {
+      allLinks[k] = Array.from(new Set([...(allLinks[k] || []), ...urls]));
+    });
+  };
+  mergeInto(normalizeLinkMap(supplier.socialLinks));
+  mergeInto(normalizeLinkMap(supplier.manualLinks));
 
   // 查看模式下渲染用的规范化 JSON 字段（容错脏数据）
   const priceItemsView = toArr<IPriceItem>(supplier.priceItems);
   const contactItemsView = toArr<IContactItem>(supplier.contactItems);
-  const socialLinksView = toObj(supplier.socialLinks);
+  const socialLinksView = normalizeLinkMap(supplier.socialLinks);
 
   const type = normalizeSupplierType(supplier.supplierType, supplier.accountName || '');
 
@@ -1421,11 +1423,11 @@ export default function SupplierDetailModal({
                 <div className={moduleBody}>
                   {isEditing ? (
                     <div className="space-y-1.5">
-                      {/* 小红书链接 AI 自动填充 */}
+                      {/* 画师链接 AI 自动填充（小红书 / 米画师，自动识别平台） */}
                       <div className="rounded-md border border-primary/30 bg-primary/5 p-2 space-y-1.5">
                         <div className="flex items-center gap-1.5">
                           <Input
-                            placeholder="粘贴小红书笔记链接或 App 分享的整段文字"
+                            placeholder="粘贴小红书笔记链接 或 米画师画师主页链接"
                             value={xhsUrl}
                             onChange={(e) => setXhsUrl(e.target.value)}
                             className="flex-1 text-xs h-7"
@@ -1443,18 +1445,20 @@ export default function SupplierDetailModal({
                           </Button>
                         </div>
                         <p className="text-[9px] text-muted-foreground">
-                          粘小红书笔记链接（非主页），AI 读图文归纳画风/题材/采购建议，预填账号名·链接·作品图·备注，请人工确认后保存。
+                          支持小红书笔记链接与米画师画师主页链接，AI 自动识别平台、归纳画风/题材/采购建议，预填账号名·链接·作品图·备注，请人工确认后保存。
                         </p>
                       </div>
-                      {Object.entries(socialLinksView).filter(([, v]) => v).map(([platform, url]) => (
-                        <div key={platform} className="flex items-center gap-1.5 text-xs">
-                          <span className="w-12 text-muted-foreground shrink-0 text-[10px]">
-                            {PLATFORM_LABELS[platform] || platform}
-                          </span>
-                          <Input value={url} readOnly className="flex-1 text-[10px] h-6 bg-muted/50 px-1.5" />
-                          <span className="text-[9px] text-muted-foreground shrink-0">(导入)</span>
-                        </div>
-                      ))}
+                      {Object.entries(socialLinksView).flatMap(([platform, urls]) =>
+                        urls.map((url, ui) => (
+                          <div key={`${platform}-${ui}`} className="flex items-center gap-1.5 text-xs">
+                            <span className="w-12 text-muted-foreground shrink-0 text-[10px]">
+                              {PLATFORM_LABELS[platform] || platform}
+                            </span>
+                            <Input value={url} readOnly className="flex-1 text-[10px] h-6 bg-muted/50 px-1.5" />
+                            <span className="text-[9px] text-muted-foreground shrink-0">(导入)</span>
+                          </div>
+                        )),
+                      )}
                       {manualLinkEntries.map((entry, index) => (
                         <div key={index} className="flex items-center gap-1.5">
                           <Select
@@ -1485,18 +1489,21 @@ export default function SupplierDetailModal({
                   ) : (
                     Object.keys(allLinks).length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
-                        {Object.entries(allLinks).map(([platform, url]) => (
-                          <Button
-                            key={platform}
-                            variant="outline"
-                            size="sm"
-                            className="h-6 px-2 gap-1 text-[10px]"
-                            onClick={() => window.open(url, '_blank')}
-                          >
-                            {PLATFORM_LABELS[platform] || platform}
-                            <ExternalLinkIcon className="w-2.5 h-2.5" />
-                          </Button>
-                        ))}
+                        {Object.entries(allLinks).flatMap(([platform, urls]) =>
+                          urls.map((url, ui) => (
+                            <Button
+                              key={`${platform}-${ui}`}
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 gap-1 text-[10px]"
+                              onClick={() => window.open(url, '_blank')}
+                            >
+                              {PLATFORM_LABELS[platform] || platform}
+                              {urls.length > 1 ? ` ${ui + 1}` : ''}
+                              <ExternalLinkIcon className="w-2.5 h-2.5" />
+                            </Button>
+                          )),
+                        )}
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground text-center py-1">暂无平台链接</p>

@@ -288,13 +288,13 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     setLinkEntries((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // 粘贴小红书链接 → 后端抓取 + AI 总结 → 预填表单（仅预填，人工确认后再保存）
+  // 粘贴画师链接（小红书/米画师）→ 后端抓取 + AI 总结 → 预填表单（仅预填，人工确认后再保存）
   const handleScrape = async () => {
     const url = xhsUrl.trim();
-    if (!url) { toast.error('请先粘贴小红书主页链接'); return; }
+    if (!url) { toast.error('请先粘贴小红书或米画师画师链接'); return; }
     setScraping(true);
     try {
-      const res = await scrapeApi.fromXiaohongshu(url);
+      const res = await scrapeApi.fromLink(url);
       if (!res.ok) {
         toast.error(res.reason || '抓取失败，请手动填写');
         // 即便失败，若抓到了图也给出来供参考
@@ -305,10 +305,11 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
       // 1) 账号名：仅在当前为空时填，避免覆盖用户已输入
       if (res.accountName && !accountName.trim()) setAccountName(res.accountName);
 
-      // 2) 小红书链接：加进平台链接（去重）。用后端解析出的纯链接，而非用户粘的整段文本
+      // 2) 平台链接：加进平台链接（去重）。用后端解析出的纯链接，平台按识别结果选
       const linkUrl = res.resolvedUrl || url;
+      const platform = res.platform || 'xiaohongshu';
       setLinkEntries((prev) =>
-        prev.some((e) => e.url === linkUrl) ? prev : [...prev, { platform: 'xiaohongshu', url: linkUrl }],
+        prev.some((e) => e.url === linkUrl) ? prev : [...prev, { platform, url: linkUrl }],
       );
 
       // 3) 作品图（去重追加，人工可删）
@@ -400,7 +401,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
 
     setSaving(true);
     try {
-      const manualLinks: Record<string, string> = {};
+      const manualLinks: Record<string, string[]> = {};
       for (const entry of linkEntries) {
         if (entry.platform && entry.url) {
           const url = entry.url.trim();
@@ -409,7 +410,9 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
             setSaving(false);
             return;
           }
-          manualLinks[entry.platform] = url;
+          // 同平台累加进数组，完全相同的 url 去重
+          const list = (manualLinks[entry.platform] ??= []);
+          if (!list.includes(url)) list.push(url);
         }
       }
 
@@ -775,15 +778,15 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
               </div>
             </div>
 
-            {/* 小红书链接 AI 自动填充 */}
+            {/* 画师链接 AI 自动填充（小红书 / 米画师，自动识别平台） */}
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
               <label className="text-xs font-medium text-primary mb-2 flex items-center gap-1">
                 <SparklesIcon className="w-3.5 h-3.5" />
-                小红书链接 · AI 自动填充
+                画师链接 · AI 自动填充
               </label>
               <div className="flex items-center gap-2">
                 <Input
-                  placeholder="粘贴小红书笔记链接，或 App 分享的整段文字"
+                  placeholder="粘贴小红书笔记链接 或 米画师画师主页链接"
                   value={xhsUrl}
                   onChange={(e) => setXhsUrl(e.target.value)}
                   className="flex-1 text-sm"
@@ -801,7 +804,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground mt-1.5">
-                粘小红书<strong>笔记</strong>链接（非主页），AI 会读取图文归纳画风/题材/采购建议，预填到下方，请人工确认后再保存。
+                支持小红书<strong>笔记</strong>链接与米画师<strong>画师主页</strong>链接，AI 自动识别平台、归纳画风/题材/采购建议并预填到下方，请人工确认后再保存。
               </p>
             </div>
 

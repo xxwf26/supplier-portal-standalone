@@ -12,7 +12,7 @@ export interface IContactItem {
 export interface ISupplier {
   id: string;
   accountName: string;
-  socialLinks: Record<string, string>;
+  socialLinks: Record<string, string[]>;
   subCategory: string | null;
   cooperationType: string | null;
   priceRange: string | null;
@@ -32,7 +32,7 @@ export interface ISupplier {
   cooperationCategory: string | null;
   supplierType: string | null;
   artworkUrls: string[];
-  manualLinks: Record<string, string>;
+  manualLinks: Record<string, string[]>;
   noteImages: string[];
   importSource: string;
   importBatchId: string | null;

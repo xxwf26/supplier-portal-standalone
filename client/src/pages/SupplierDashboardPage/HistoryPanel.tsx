@@ -93,8 +93,11 @@ function fmtValue(field: string, value: unknown): string {
       : '–';
   }
   if ((field === 'socialLinks' || field === 'manualLinks') && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, string>).filter(([, v]) => v);
-    return entries.length ? entries.map(([k, v]) => `${k}: ${v}`).join(', ') : '–';
+    // 链接值可能是数组（新格式 {p:[url...]}）或历史单字符串，统一成数组展示
+    const entries = Object.entries(value as Record<string, string[] | string>)
+      .map(([k, v]) => [k, Array.isArray(v) ? v.filter(Boolean) : v ? [v] : []] as [string, string[]])
+      .filter(([, urls]) => urls.length);
+    return entries.length ? entries.map(([k, urls]) => `${k}: ${urls.join(', ')}`).join('; ') : '–';
   }
   if (Array.isArray(value)) return value.length ? value.join('、') : '–';
   return String(value);
