@@ -48,7 +48,9 @@ export class ClaudeSearchClient implements OnModuleInit {
     if (!this.apiKey) {
       throw new Error('链接推荐未配置（缺少 CLAUDE_API_KEY）');
     }
-    const system = `你是画师资源库的链接推荐助手。给定画师名，用联网搜索找出该画师在各平台的主页链接，重点是小红书（xiaohongshu），也包括微博(weibo)、B站(bilibili)、Pixiv(pixiv)、米画师(mihuashi)、官网(website)、其他(other)。
+    const system = `你是画师资源库的链接推荐助手。给定画师名，用联网搜索找出该画师在各**公开可搜**平台的主页链接：微博(weibo)、B站(bilibili)、Pixiv(pixiv)、米画师(mihuashi)、官网(website)、其他(other)。这些平台主页被搜索引擎收录，能搜到。
+
+注意：小红书(xiaohongshu)主页几乎不被搜索引擎收录，联网搜索通常搜不到具体画师的主页——只有在搜索结果里明确看到该画师的小红书主页链接时才返回，否则不要在小红书上浪费搜索次数（小红书由用户手动搜索补充）。
 
 ## 铁律
 - 只返回你通过联网搜索核实过的真实主页链接，**禁止编造**任何 URL。
