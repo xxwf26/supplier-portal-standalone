@@ -5,6 +5,7 @@ import {
   PencilIcon, PlusIcon, LinkIcon, ImageIcon, XIcon, CheckIcon,
   PhoneIcon, ShieldIcon, ArchiveRestoreIcon,
   ChevronLeftIcon, ChevronRightIcon, Building2Icon, SparklesIcon,
+  ListChecksIcon,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -47,6 +48,7 @@ import {
   type PriceItemEntry, type ContactItemEntry,
 } from './supplierFormShared';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
+import { AddToShortlistDialog } from './ShortlistPanel';
 
 const typeConfig = SUPPLIER_TYPE_STYLE;
 
@@ -208,6 +210,7 @@ export default function SupplierDetailModal({
 
   const [isEditing, setIsEditing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [addShortlistOpen, setAddShortlistOpen] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -864,15 +867,26 @@ export default function SupplierDetailModal({
                 )}
               </div>
             </div>
-            {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
-            >
-              {isEditing ? '取消' : <><PencilIcon className="w-3.5 h-3.5 mr-1" />编辑</>}
-            </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {!isEditing && supplier && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAddShortlistOpen(true)}
+                >
+                  <ListChecksIcon className="w-3.5 h-3.5 mr-1" />加入清单
+                </Button>
+              )}
+              {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => isEditing ? handleCancel() : setIsEditing(true)}
+              >
+                {isEditing ? '取消' : <><PencilIcon className="w-3.5 h-3.5 mr-1" />编辑</>}
+              </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
 
@@ -1825,6 +1839,15 @@ export default function SupplierDetailModal({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* 加入候选清单 */}
+    {supplier && (
+      <AddToShortlistDialog
+        open={addShortlistOpen}
+        onClose={() => setAddShortlistOpen(false)}
+        supplierIds={[supplier.id]}
+      />
+    )}
 
     {/* 作品灯箱 */}
     {lightboxIndex !== null && artworkUrls.length > 0 && (

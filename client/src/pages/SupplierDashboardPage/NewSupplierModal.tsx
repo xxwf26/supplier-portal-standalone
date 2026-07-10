@@ -104,6 +104,11 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
   const [priceItemEntries, setPriceItemEntries] = useState<PriceItemEntry[]>([]);
   const [priceRange, setPriceRange] = useState('');
   const [contactItemEntries, setContactItemEntries] = useState<ContactItemEntry[]>([]);
+  // 概览类字段（与详情弹窗一致，建联当场即可录入，无需存后再补）
+  const [ratingVal, setRatingVal] = useState('');
+  const [statusVal, setStatusVal] = useState('unset');
+  const [cooperationCountVal, setCooperationCountVal] = useState('');
+  const [categoryVal, setCategoryVal] = useState('');
 
   // 小红书链接 AI 自动填充
   const [xhsUrl, setXhsUrl] = useState('');
@@ -113,7 +118,8 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
     priceItemEntries.length > 0 || contactItemEntries.length > 0 || linkEntries.length > 0 ||
     noteImages.length > 0 || priceRange !== '' ||
-    contractEntity !== '' || contractType !== '' || contractNo !== '' || contractDeadline !== '';
+    contractEntity !== '' || contractType !== '' || contractNo !== '' || contractDeadline !== '' ||
+    ratingVal !== '' || statusVal !== 'unset' || cooperationCountVal !== '' || categoryVal !== '';
 
   // 输入名称时实时检测相似画师（纯前端比对，无需 API，防抖 400ms）
   useEffect(() => {
@@ -138,6 +144,7 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         contactInfo, entityType, styleTags, linkEntries, priceItemEntries,
         contactItemEntries, noteImages, priceRange,
         contractEntity, contractType, contractNo, contractDeadline,
+        ratingVal, statusVal, cooperationCountVal, categoryVal,
         savedAt: new Date().toISOString(),
       };
       try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
@@ -145,7 +152,8 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     return () => clearTimeout(timer);
   }, [open, isDirty, accountName, supplierType, cooperationTypes,
     contactInfo, entityType, styleTags, linkEntries, priceItemEntries, contactItemEntries,
-    contractEntity, contractType, contractNo, contractDeadline, priceRange]);
+    contractEntity, contractType, contractNo, contractDeadline, priceRange,
+    ratingVal, statusVal, cooperationCountVal, categoryVal]);
 
   // 打开时检测草稿（修复 stale closure：移除 !isDirty 条件，有草稿就显示 banner）
   useEffect(() => {
@@ -180,6 +188,10 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
       setContractType(d.contractType ?? '');
       setContractNo(d.contractNo ?? '');
       setContractDeadline(d.contractDeadline ?? '');
+      setRatingVal(d.ratingVal ?? '');
+      setStatusVal(d.statusVal ?? 'unset');
+      setCooperationCountVal(d.cooperationCountVal ?? '');
+      setCategoryVal(d.categoryVal ?? '');
     } catch {}
     setDraftSavedAt(null);
   }, []);
@@ -210,6 +222,10 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     setContractType('');
     setContractNo('');
     setContractDeadline('');
+    setRatingVal('');
+    setStatusVal('unset');
+    setCooperationCountVal('');
+    setCategoryVal('');
     setDraftSavedAt(null);
   };
 
@@ -463,6 +479,11 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         contactItems,
         artworkUrls: artworkUrls.length > 0 ? artworkUrls : undefined,
         noteImages: noteImages.length > 0 ? noteImages : undefined,
+        rating: ratingVal ? Number(ratingVal) : undefined,
+        cooperationCount: cooperationCountVal ? Number(cooperationCountVal) : undefined,
+        cooperationCategory: categoryVal.trim() || undefined,
+        isInStock: statusVal === 'in_stock',
+        riskStatus: statusVal === 'blacklisted' ? '拉黑' : statusVal === 'outreach' ? '暂无' : '未填写',
       });
 
       toast.success(`供应商「${accountName}」创建成功`);
@@ -582,6 +603,58 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* 概览：评分 / 合作状态 / 合作频次 / 合作品类（与详情弹窗一致，建联当场即可录入） */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">合作状态</label>
+                <Select value={statusVal} onValueChange={setStatusVal}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">未填写</SelectItem>
+                    <SelectItem value="in_stock">库内合作</SelectItem>
+                    <SelectItem value="outreach">库外建联</SelectItem>
+                    <SelectItem value="blacklisted">已拉黑</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">评分</label>
+                <Select value={ratingVal === '' ? 'none' : ratingVal} onValueChange={(v) => setRatingVal(v === 'none' ? '' : v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="评分" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">未评分</SelectItem>
+                    <SelectItem value="1">1 分</SelectItem>
+                    <SelectItem value="2">2 分</SelectItem>
+                    <SelectItem value="3">3 分</SelectItem>
+                    <SelectItem value="4">4 分</SelectItem>
+                    <SelectItem value="5">5 分</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">合作频次</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={cooperationCountVal}
+                  onChange={(e) => setCooperationCountVal(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">合作品类</label>
+                <Input
+                  value={categoryVal}
+                  onChange={(e) => setCategoryVal(e.target.value)}
+                  placeholder="如：立绘 / 头像 / 场景"
+                />
               </div>
             </div>
 

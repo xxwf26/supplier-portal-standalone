@@ -1,0 +1,70 @@
+{
+    "subagents": [
+        {
+            "id": 1,
+            "title": "Explorer",
+            "objective": "Read-only subagent for codebase exploration and insight gathering.",
+            "tools": [
+                "Read",
+                "Bash",
+                "BashOutput",
+                "KillShell",
+                "IntelliJSearch",
+                "Diagnostics",
+                "WebSearch",
+                "WebFetch",
+                "MCP",
+                "ResolveLibraryId",
+                "GetLibraryDocs",
+                "LoadSkill",
+                "TodoWrite",
+                "get_run_configurations",
+                "get_run_output",
+                "get_debug_sessions",
+                "get_breakpoints"
+            ],
+            "target": {
+                "native": {
+                    "provider": "CUSTOM_OPENAI",
+                    "model": "49c8770a-9c4c-4e53-9c6e-d9ac724ce079"
+                }
+            }
+        },
+        {
+            "id": 2,
+            "title": "General Task",
+            "objective": "General-purpose subagent for executing concrete coding tasks.",
+            "tools": [
+                "Read",
+                "Write",
+                "Edit",
+                "Bash",
+                "BashOutput",
+                "KillShell",
+                "IntelliJSearch",
+                "Diagnostics",
+                "WebSearch",
+                "WebFetch",
+                "MCP",
+                "ResolveLibraryId",
+                "GetLibraryDocs",
+                "LoadSkill",
+                "TodoWrite",
+                "get_run_configurations",
+                "execute_run_configuration",
+                "get_run_output",
+                "get_debug_sessions",
+                "get_breakpoints",
+                "create_breakpoint",
+                "debug_session_control"
+            ],
+            "target": {
+                "native": {
+                    "provider": "CUSTOM_OPENAI",
+                    "model": "49c8770a-9c4c-4e53-9c6e-d9ac724ce079"
+                }
+            }
+        }
+    ],
+    "hooks": {}
+}
