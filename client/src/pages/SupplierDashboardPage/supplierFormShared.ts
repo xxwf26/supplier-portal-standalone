@@ -98,3 +98,22 @@ export function normalizeLinkMap(v: unknown): Record<string, string[]> {
   return out;
 }
 
+/**
+ * 从画师名里提取要搜索的名字数组（"两个都用"）：括号外 + 每个括号内，去重去空。
+ * 画师名常是「真名（网名）」或「网名（真名）」混合，搜索/匹配时两个都取。
+ * 例：'黄鑫奔（本本不熬夜）' → ['黄鑫奔','本本不熬夜']；'本本不熬夜' → ['本本不熬夜']。
+ */
+export function extractSearchNames(name: string): string[] {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return [];
+  const names = new Set<string>();
+  const outside = trimmed.replace(/[（(][^）)]*[）)]/g, '').replace(/\s+/g, ' ').trim();
+  if (outside) names.add(outside);
+  const parens = trimmed.match(/[（(][^）)]*[）)]/g) || [];
+  for (const p of parens) {
+    const inner = p.slice(1, -1).trim();
+    if (inner) names.add(inner);
+  }
+  return Array.from(names);
+}
+

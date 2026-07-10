@@ -5,6 +5,8 @@ export interface RecommendCandidate {
   platform: string;
   url: string;
   title?: string;
+  /** 主页显示名（精准匹配校验用） */
+  name?: string;
 }
 
 /** recommendLinks 返回结构（对齐后端 RecommendResult） */

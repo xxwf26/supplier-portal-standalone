@@ -9,14 +9,17 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { ExternalLinkIcon, SearchIcon, PlusIcon } from 'lucide-react';
-import { PLATFORM_OPTIONS, PLATFORM_LABELS } from './supplierFormShared';
+import { PLATFORM_OPTIONS, PLATFORM_LABELS, extractSearchNames } from './supplierFormShared';
 import type { RecommendCandidate } from '@/api/recommend';
 
-/** 小红书主页不被搜索引擎收录、AI 搜不到，由用户在自己浏览器（已登录）手动搜索补充。
- *  微博/B站/P站等公开可搜平台由 AI 直接给主页链接，不放在这里。 */
-const PLATFORM_SEARCH_URLS: { platform: string; label: string; url: (name: string) => string }[] = [
-  { platform: 'xiaohongshu', label: '小红书', url: (n) => `https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(n)}` },
-];
+/**
+ * 小红书主页不被搜索引擎收录、AI 搜不到，由用户在自己浏览器（已登录）手动搜索补充。
+ * 微博/B站/P站等公开可搜平台由 AI 直接给主页链接，不放在这里。
+ * 画师名常含「真名（网名）」，这里按 extractSearchNames 拆出每个名字各给一个搜索链接。
+ */
+function xhsSearchUrl(n: string): string {
+  return `https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(n)}`;
+}
 
 /**
  * 链接推荐候选确认弹窗（单个画师）。
@@ -87,21 +90,22 @@ export function RecommendLinksDialog({
           <DialogDescription className="sr-only">AI 联网搜索的候选主页链接，可手动搜索加入，确认后填入</DialogDescription>
         </DialogHeader>
 
-        {/* 手动搜索入口：点击跳转各平台搜索页（自动填入画师名），用户在自己浏览器登录态下搜 */}
+        {/* 手动搜索入口：小红书主页 AI 搜不到，由用户在自己浏览器（已登录）搜。
+            画师名含「真名（网名）」时，按拆出的每个名字各给一个搜索链接。 */}
         <div className="rounded-md border border-blue-200 bg-blue-50/50 p-2 space-y-1.5">
           <p className="text-[10px] text-muted-foreground">
-            小红书主页 AI 搜不到？点这里在小红书搜索「{name}」（在你自己浏览器里，已登录可直接看结果），找到主页后复制链接粘贴到下方加入：
+            小红书主页 AI 搜不到？点下方在小红书搜索（在你自己浏览器里，已登录可直接看结果），找到主页后复制链接粘贴到下方加入：
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {PLATFORM_SEARCH_URLS.map((p) => (
+            {extractSearchNames(name).map((n) => (
               <a
-                key={p.platform}
-                href={p.url(name)}
+                key={n}
+                href={xhsSearchUrl(n)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] bg-white border border-border hover:border-primary hover:text-primary transition-colors"
               >
-                {p.label}
+                搜「{n}」
                 <ExternalLinkIcon className="w-2.5 h-2.5" />
               </a>
             ))}
