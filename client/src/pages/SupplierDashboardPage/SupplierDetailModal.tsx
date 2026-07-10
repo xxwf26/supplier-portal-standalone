@@ -49,6 +49,8 @@ import {
 } from './supplierFormShared';
 import { LimitedTextarea } from '@/components/ui/limited-textarea';
 import { AddToShortlistDialog } from './ShortlistPanel';
+import { recommendApi, type RecommendCandidate } from '@/api/recommend';
+import { RecommendLinksDialog } from './RecommendLinksDialog';
 
 const typeConfig = SUPPLIER_TYPE_STYLE;
 
@@ -243,6 +245,12 @@ export default function SupplierDetailModal({
   // 小红书链接 AI 自动填充
   const [xhsUrl, setXhsUrl] = useState('');
   const [scraping, setScraping] = useState(false);
+
+  // AI 推荐链接（根据画师名联网搜索主页链接）
+  const [recommendOpen, setRecommendOpen] = useState(false);
+  const [recommendCandidates, setRecommendCandidates] = useState<RecommendCandidate[]>([]);
+  const [recommendLoading, setRecommendLoading] = useState(false);
+  const [recommendError, setRecommendError] = useState<string | undefined>(undefined);
 
   // 备注快捷模板
   const PRESET_NOTES = ['试稿未通过', '绘制沟通情况', '预警', '档期满', '价格偏高', '质量不稳定'];
@@ -586,6 +594,44 @@ export default function SupplierDetailModal({
     } finally {
       setScraping(false);
     }
+  };
+
+  // AI 推荐链接：根据画师名联网搜索各平台主页链接，弹窗让用户勾选确认后填入
+  const handleRecommendLinks = async () => {
+    const name = nameVal.trim();
+    if (!name) { toast.error('画师名称为空，无法搜索'); return; }
+    setRecommendLoading(true);
+    setRecommendError(undefined);
+    setRecommendCandidates([]);
+    setRecommendOpen(true);
+    try {
+      const res = await recommendApi.recommendLinks(name);
+      if (!res.ok) {
+        setRecommendError(res.reason || '搜索失败');
+      } else {
+        setRecommendCandidates(res.candidates);
+      }
+    } catch (err: any) {
+      logger.error('Recommend links failed:', String(err));
+      setRecommendError('联网搜索请求失败，请稍后重试');
+    } finally {
+      setRecommendLoading(false);
+    }
+  };
+
+  const handleRecommendConfirm = (selected: RecommendCandidate[]) => {
+    // 把选中候选 append 进 manualLinkEntries，按 url 去重
+    const existing = new Set(manualLinkEntries.map((e) => e.url));
+    const additions: ManualLinkEntry[] = selected
+      .filter((c) => !existing.has(c.url))
+      .map((c) => ({ platform: c.platform, url: c.url }));
+    if (additions.length === 0) {
+      toast.message('选中链接已在列表中');
+    } else {
+      setManualLinkEntries((prev) => [...prev, ...additions]);
+      toast.success(`已填入 ${additions.length} 条推荐链接，请确认后保存`);
+    }
+    setRecommendOpen(false);
   };
 
   const addPriceItem = () => {
@@ -1465,6 +1511,20 @@ export default function SupplierDetailModal({
                           支持小红书笔记链接与米画师画师主页链接，AI 自动识别平台、归纳画风/题材/采购建议，预填账号名·链接·作品图·备注，请人工确认后保存。
                         </p>
                       </div>
+                      {/* AI 推荐链接：根据画师名联网搜索主页链接 */}
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRecommendLinks}
+                          disabled={recommendLoading || !nameVal.trim()}
+                          className="h-7 px-2 text-[10px] gap-1"
+                        >
+                          <SparklesIcon className="w-3 h-3" />
+                          {recommendLoading ? '搜索中…' : 'AI 推荐链接'}
+                        </Button>
+                        <span className="text-[9px] text-muted-foreground">根据画师名联网搜索小红书等主页链接，候选确认后填入</span>
+                      </div>
                       {Object.entries(socialLinksView).flatMap(([platform, urls]) =>
                         urls.map((url, ui) => (
                           <div key={`${platform}-${ui}`} className="flex items-center gap-1.5 text-xs">
@@ -1848,6 +1908,17 @@ export default function SupplierDetailModal({
         supplierIds={[supplier.id]}
       />
     )}
+
+    {/* AI 推荐链接候选确认 */}
+    <RecommendLinksDialog
+      open={recommendOpen}
+      onClose={() => setRecommendOpen(false)}
+      name={nameVal}
+      candidates={recommendCandidates}
+      loading={recommendLoading}
+      error={recommendError}
+      onConfirm={handleRecommendConfirm}
+    />
 
     {/* 作品灯箱 */}
     {lightboxIndex !== null && artworkUrls.length > 0 && (

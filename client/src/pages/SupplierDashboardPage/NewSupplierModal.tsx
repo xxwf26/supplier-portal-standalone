@@ -21,6 +21,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supplierApi } from '@/api/supplier';
 import { scrapeApi } from '@/api/scrape';
+import { recommendApi, type RecommendCandidate } from '@/api/recommend';
+import { RecommendLinksDialog } from './RecommendLinksDialog';
 import { artworkSrc } from '@/lib/imageSrc';
 import { IPriceItem, IContactItem } from '@/api/types';
 import { axiosForBackend } from '@/api';
@@ -113,6 +115,12 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
   // 小红书链接 AI 自动填充
   const [xhsUrl, setXhsUrl] = useState('');
   const [scraping, setScraping] = useState(false);
+
+  // AI 推荐链接（根据画师名联网搜索主页链接）
+  const [recommendOpen, setRecommendOpen] = useState(false);
+  const [recommendCandidates, setRecommendCandidates] = useState<RecommendCandidate[]>([]);
+  const [recommendLoading, setRecommendLoading] = useState(false);
+  const [recommendError, setRecommendError] = useState<string | undefined>(undefined);
 
   const isDirty = accountName.trim() !== '' || supplierType !== '' || cooperationTypes.length > 0 ||
     contactInfo !== '' || entityType !== '' || styleTags.length > 0 ||
@@ -365,6 +373,40 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
     } finally {
       setScraping(false);
     }
+  };
+
+  // AI 推荐链接：根据画师名联网搜索各平台主页链接，弹窗勾选确认后填入
+  const handleRecommendLinks = async () => {
+    const name = accountName.trim();
+    if (!name) { toast.error('请先输入画师名称'); return; }
+    setRecommendLoading(true);
+    setRecommendError(undefined);
+    setRecommendCandidates([]);
+    setRecommendOpen(true);
+    try {
+      const res = await recommendApi.recommendLinks(name);
+      if (!res.ok) setRecommendError(res.reason || '搜索失败');
+      else setRecommendCandidates(res.candidates);
+    } catch (err: any) {
+      logger.error('Recommend links failed:', String(err));
+      setRecommendError('联网搜索请求失败，请稍后重试');
+    } finally {
+      setRecommendLoading(false);
+    }
+  };
+
+  const handleRecommendConfirm = (selected: RecommendCandidate[]) => {
+    const existing = new Set(linkEntries.map((e) => e.url));
+    const additions: LinkEntry[] = selected
+      .filter((c) => !existing.has(c.url))
+      .map((c) => ({ platform: c.platform, url: c.url }));
+    if (additions.length === 0) {
+      toast.message('选中链接已在列表中');
+    } else {
+      setLinkEntries((prev) => [...prev, ...additions]);
+      toast.success(`已填入 ${additions.length} 条推荐链接`);
+    }
+    setRecommendOpen(false);
   };
 
   const addPriceItem = () => {
@@ -879,6 +921,19 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
               <p className="text-[10px] text-muted-foreground mt-1.5">
                 支持小红书<strong>笔记</strong>链接与米画师<strong>画师主页</strong>链接，AI 自动识别平台、归纳画风/题材/采购建议并预填到下方，请人工确认后再保存。
               </p>
+              <div className="flex items-center gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRecommendLinks}
+                  disabled={recommendLoading || !accountName.trim()}
+                  className="gap-1 shrink-0"
+                >
+                  <SparklesIcon className="w-3.5 h-3.5" />
+                  {recommendLoading ? '搜索中…' : 'AI 推荐链接'}
+                </Button>
+                <span className="text-[10px] text-muted-foreground">根据画师名联网搜索小红书等主页链接，候选确认后填入下方</span>
+              </div>
             </div>
 
             <div>
@@ -1009,6 +1064,17 @@ export default function NewSupplierModal({ open, onClose, onCreated, suppliers =
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* AI 推荐链接候选确认 */}
+    <RecommendLinksDialog
+      open={recommendOpen}
+      onClose={() => setRecommendOpen(false)}
+      name={accountName}
+      candidates={recommendCandidates}
+      loading={recommendLoading}
+      error={recommendError}
+      onConfirm={handleRecommendConfirm}
+    />
 
     {/* 放弃编辑确认 */}
     <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>

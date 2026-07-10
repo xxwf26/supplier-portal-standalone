@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon, ListChecksIcon, FileSpreadsheetIcon, LayoutGridIcon, TableIcon, PencilIcon } from 'lucide-react';
+import { PlusIcon, UploadIcon, DownloadIcon, CopyIcon, CheckIcon, XIcon, FilterIcon, HistoryIcon, SearchIcon, ArrowUpDownIcon, ArrowUpToLineIcon, SearchXIcon, ScanSearchIcon, Trash2Icon, ListChecksIcon, FileSpreadsheetIcon, LayoutGridIcon, TableIcon, PencilIcon, SparklesIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import HeaderSection from './HeaderSection';
 import FilterPanelSection, { IFilterState, STORAGE_KEY } from './FilterPanelSection';
@@ -27,6 +27,7 @@ import HistoryPanel from './HistoryPanel';
 import ShortlistPanel, { AddToShortlistDialog } from './ShortlistPanel';
 import SupplierTableSection from './SupplierTableSection';
 import BatchEditDialog from './BatchEditDialog';
+import { BatchRecommendDialog } from './BatchRecommendDialog';
 import DuplicateCheckPanel from './DuplicateCheckPanel';
 import { normalizeSupplierType } from '@/lib/supplierUtils';
 import { normalizeForSearch, toPinyin } from '@/lib/chineseNormalize';
@@ -184,6 +185,7 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [batchEditOpen, setBatchEditOpen] = useState(false);
+  const [batchRecommendOpen, setBatchRecommendOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   // 搜索防抖：输入框即时回显 keyword，实际过滤用 debouncedKeyword，避免每次按键全量重算
   const debouncedKeyword = useDebouncedValue(keyword, 300);
@@ -1001,6 +1003,16 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
                     批量编辑
                   </Button>
                   <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => setBatchRecommendOpen(true)}
+                    disabled={selectedSuppliers.length === 0}
+                  >
+                    <SparklesIcon className="w-3.5 h-3.5" />
+                    批量推荐链接
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -1038,6 +1050,15 @@ export default function SupplierDashboardPage({ viewMode = 'pc' }: { viewMode?: 
       <ShortlistPanel open={isShortlistOpen} onClose={() => setIsShortlistOpen(false)} onOpenSupplier={handleOpenSupplierById} />
       <AddToShortlistDialog open={addToListOpen} onClose={() => setAddToListOpen(false)} supplierIds={Array.from(selectedIds)} />
       <BatchEditDialog open={batchEditOpen} onClose={() => setBatchEditOpen(false)} supplierIds={Array.from(selectedIds)} onDone={() => { handleClearSelection(); fetchSuppliers(); }} />
+      <BatchRecommendDialog
+        open={batchRecommendOpen}
+        onClose={() => setBatchRecommendOpen(false)}
+        suppliers={rawSuppliers
+          .filter((s) => selectedIds.has(s.id))
+          .filter((s) => Object.keys(normalizeLinkMap(s.manualLinks)).length === 0 && Object.keys(normalizeLinkMap(s.socialLinks)).length === 0)
+          .map((s) => ({ id: s.id, accountName: s.accountName, manualLinks: s.manualLinks, socialLinks: s.socialLinks }))}
+        onDone={() => { fetchSuppliers(); }}
+      />
 
       {/* 导出字段选择对话框 */}
       <ExportFieldsDialog
