@@ -105,7 +105,12 @@ export default function SupplierTableSection({
           {suppliers.map((s) => {
             const st = STATUS_LABEL[s.status] || STATUS_LABEL.unset;
             const dl = cardDeadlineStatus(s.contractDeadline);
-            const linkEntries = Object.entries(s.links || {}).filter(([, v]) => v);
+            // s.links 是 Record<string, string[]>（每平台可多条），扁平成 {platform,url} 列表；兼容历史单字符串脏数据
+            const linkEntries: { platform: string; url: string }[] = [];
+            Object.entries(s.links || {}).forEach(([platform, raw]) => {
+              const urls = Array.isArray(raw) ? raw : (typeof raw === 'string' && raw ? [raw] : []);
+              urls.forEach((u) => { if (u && typeof u === 'string') linkEntries.push({ platform, url: u }); });
+            });
             const coopTypes = s.cooperationTypes || [];
             const projects = s.project || [];
             const works = s.works || [];
@@ -194,8 +199,8 @@ export default function SupplierTableSection({
                       <div>
                         <p className="text-[10px] font-medium text-muted-foreground mb-1">平台链接</p>
                         <div className="space-y-0.5">
-                          {linkEntries.map(([platform, url]) => (
-                            <p key={platform} className="text-foreground">
+                          {linkEntries.map(({ platform, url }, i) => (
+                            <p key={`${platform}-${i}`} className="text-foreground">
                               <span className="text-muted-foreground w-14 inline-block">{PLATFORM_LABELS[platform] || platform}</span>
                               <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 hover:underline truncate max-w-[180px] inline-block align-bottom">{url.replace(/^https?:\/\//, '')}</a>
                             </p>
